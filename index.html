@@ -32,35 +32,46 @@
         .catch(e => console.warn('fbSave error:', e));
     };
 
-    let _listenRef = null;
-    let _listenCallback = null;
-    let _listenCampaignId = null;
+    // Split-path architecture:
+    // campaigns/<id>/characters/<charId>  — each character separate, written by its player
+    // campaigns/<id>/world                — maps, tokens, library — written by DM only
+    let _charRef = null, _worldRef = null;
 
-    window.fbListen = function(campaignId, callback) {
-      _listenCampaignId = campaignId;
-      _listenCallback = callback;
-      _listenRef = ref(db, 'campaigns/' + campaignId);
-      onValue(_listenRef, snap => {
-        if (snap.exists()) callback(snap.val());
-      });
+    window.fbSaveCharacter = function(campaignId, charId, charData) {
+      return set(ref(db, 'campaigns/' + campaignId + '/characters/' + charId), charData)
+        .catch(e => console.warn('fbSaveCharacter:', e));
+    };
+
+    window.fbDeleteCharacter = function(campaignId, charId) {
+      return set(ref(db, 'campaigns/' + campaignId + '/characters/' + charId), null)
+        .catch(e => console.warn('fbDeleteCharacter:', e));
+    };
+
+    window.fbSaveWorld = function(campaignId, worldData) {
+      return set(ref(db, 'campaigns/' + campaignId + '/world'), worldData)
+        .catch(e => console.warn('fbSaveWorld:', e));
+    };
+
+    // Legacy full save — still used for bulk operations
+    window.fbSave = function(campaignId, data) {
+      return set(ref(db, 'campaigns/' + campaignId), data)
+        .catch(e => console.warn('fbSave:', e));
+    };
+
+    window.fbListen = function(campaignId, onChars, onWorld) {
+      _charRef = ref(db, 'campaigns/' + campaignId + '/characters');
+      _worldRef = ref(db, 'campaigns/' + campaignId + '/world');
+      onValue(_charRef, snap => { onChars(snap.exists() ? snap.val() : {}); });
+      onValue(_worldRef, snap => { onWorld(snap.exists() ? snap.val() : null); });
     };
 
     window.fbStopListen = function() {
-      if (_listenRef) { off(_listenRef); _listenRef = null; }
+      if (_charRef) { off(_charRef); _charRef = null; }
+      if (_worldRef) { off(_worldRef); _worldRef = null; }
     };
 
-    window.fbPauseListen = function() {
-      if (_listenRef) { off(_listenRef); _listenRef = null; }
-    };
-
-    window.fbResumeListen = function() {
-      if (_listenCampaignId && _listenCallback && !_listenRef) {
-        _listenRef = ref(db, 'campaigns/' + _listenCampaignId);
-        onValue(_listenRef, snap => {
-          if (snap.exists()) _listenCallback(snap.val());
-        });
-      }
-    };
+    window.fbPauseListen = function() { window.fbStopListen(); };
+    window.fbResumeListen = function() {}; // handled by re-listening on login
 
     window.fbSaveMeta = function(joinCode, metaData) {
       return set(ref(db, 'meta/' + joinCode), metaData)
@@ -1262,23 +1273,30 @@ const CREATOR_STEPS = ['Identity','Race','Class','Background','Stats','Spells & 
 // ============================================================
 // PERSISTENCE
 // ============================================================
-function buildSaveData() {
+function buildCharactersKeyed() {
+  const keyed = {};
+  state.characters.forEach(c => { keyed[c.id] = c; });
+  return keyed;
+}
+
+function buildWorldData() {
   if (state.activeMapId) {
     const m = state.maps.find(m => m.id === state.activeMapId);
     if (m) m.tokens = mapState.tokens;
   }
-  // Always store characters as keyed object so player patches and DM saves stay consistent
-  const charactersKeyed = {};
-  state.characters.forEach(c => { charactersKeyed[c.id] = c; });
   return {
-    characters: charactersKeyed,
     maps: state.maps,
     activeMapId: state.activeMapId,
     tokenLibrary: state.tokenLibrary,
     gridSize: state.gridSize,
     showGrid: state.showGrid,
-    tokens: mapState.tokens,
-    mapImg: state.mapImg,
+  };
+}
+
+function buildSaveData() {
+  return {
+    characters: buildCharactersKeyed(),
+    ...buildWorldData(),
   };
 }
 
@@ -1287,21 +1305,25 @@ let _suppressRemoteUntil = 0;
 function save() {
   const data = buildSaveData();
   localStorage.setItem('chronicler_v2', JSON.stringify(data));
-  if (state.syncEnabled && state.campaignId && window.fbSave) {
-    clearTimeout(_saveDebounce);
-    _saveDebounce = setTimeout(() => {
-      window.fbPauseListen && window.fbPauseListen();
-      window.fbSave(state.campaignId, data).then(() => {
-        setTimeout(() => { window.fbResumeListen && window.fbResumeListen(); }, 300);
-      }).catch(() => {
-        window.fbResumeListen && window.fbResumeListen();
+  if (!state.syncEnabled || !state.campaignId) return;
+  clearTimeout(_saveDebounce);
+  _saveDebounce = setTimeout(() => {
+    if (state.currentUser?.isDM) {
+      // DM saves world data + all characters
+      window.fbSaveWorld && window.fbSaveWorld(state.campaignId, buildWorldData());
+      state.characters.forEach(ch => {
+        window.fbSaveCharacter && window.fbSaveCharacter(state.campaignId, ch.id, ch);
       });
-    }, 800);
-  }
+    } else {
+      // Player saves only their own character
+      const myChar = state.characters.find(ch => ch.player === state.currentUser?.name);
+      if (myChar) window.fbSaveCharacter && window.fbSaveCharacter(state.campaignId, myChar.id, myChar);
+    }
+  }, 800);
 }
 
 function applyData(d) {
-  // characters may be an array (DM save) or keyed object (player patch)
+  // Handle characters — may be array (legacy) or keyed object
   if (Array.isArray(d.characters)) {
     state.characters = d.characters;
   } else if (d.characters && typeof d.characters === 'object') {
@@ -1309,20 +1331,21 @@ function applyData(d) {
   } else {
     state.characters = [];
   }
-  state.gridSize = d.gridSize || 50;
-  state.showGrid = d.showGrid !== false;
-  state.tokenLibrary = d.tokenLibrary || [];
-
-  if (d.maps && d.maps.length) {
-    state.maps = d.maps;
-    state.activeMapId = d.activeMapId || state.maps[0].id;
-  } else if (d.mapImg) {
-    const legacyMap = { id: 'map_legacy', name: 'Map 1', img: d.mapImg, tokens: d.tokens || [] };
+  // Handle world data — may be nested under 'world' or flat (legacy)
+  const world = d.world || d;
+  state.gridSize = world.gridSize || 50;
+  state.showGrid = world.showGrid !== false;
+  state.tokenLibrary = world.tokenLibrary || [];
+  if (world.maps && world.maps.length) {
+    state.maps = world.maps;
+    state.activeMapId = world.activeMapId || state.maps[0]?.id;
+  } else if (world.mapImg) {
+    const legacyMap = { id: 'map_legacy', name: 'Map 1', img: world.mapImg, tokens: world.tokens || [] };
     state.maps = [legacyMap];
     state.activeMapId = legacyMap.id;
   } else {
-    state.maps = [];
-    state.activeMapId = null;
+    state.maps = state.maps.length ? state.maps : [];
+    state.activeMapId = state.activeMapId || null;
   }
   const active = state.maps.find(m => m.id === state.activeMapId);
   mapState.tokens = active ? [...(active.tokens || [])] : [];
@@ -1336,43 +1359,71 @@ function load() {
   } catch(e) { console.error(e); }
 }
 
-// Called by Firebase listener on remote update
-function onRemoteData(d) {
-  // Clear the localStorage fallback timeout — Firebase responded
+function _rerender() {
+  if (!state.currentUser) return;
+  renderCharacters();
+  renderMapTabs();
+  const active = state.maps.find(m => m.id === state.activeMapId);
+  if (active?.img && (!mapImage || mapImage.src !== active.img)) {
+    const img = new Image();
+    img.onload = () => { mapImage = img; redrawMap(); };
+    img.src = active.img;
+  } else {
+    redrawMap();
+  }
+  renderTokenList();
+  if (!state.currentUser?.isDM) {
+    const mapPanel = document.getElementById('panel-map');
+    if (mapPanel && mapPanel.classList.contains('active')) renderCombatSidebar();
+  }
+  const sheetPanel = document.getElementById('panel-sheet');
+  if (sheetPanel && sheetPanel.classList.contains('active')) renderMySheet();
+  const partyPanel = document.getElementById('panel-party');
+  if (partyPanel && partyPanel.classList.contains('active')) {
+    state.dmPartyCharId ? renderDMSheet(state.dmPartyCharId) : renderPartyPanel();
+  }
+}
+
+// Called when Firebase characters path updates
+function onRemoteChars(chars) {
   if (window._fbLoadTimeout) { clearTimeout(window._fbLoadTimeout); window._fbLoadTimeout = null; }
-  // Suppress echo of our own saves during the debounce + write window
-  if (Date.now() < _suppressRemoteUntil) return;
-  applyData(d);
-  // Persist locally too
-  localStorage.setItem('chronicler_v2', JSON.stringify(d));
-  // Re-render live panels
-  if (state.currentUser) {
-    renderCharacters();
-    renderMapTabs();
-    // Always reload map/tokens so they're ready when player switches to map tab
-    const active = state.maps.find(m => m.id === state.activeMapId);
-    if (active?.img && (!mapImage || mapImage.src !== active.img)) {
-      const img = new Image();
-      img.onload = () => { mapImage = img; redrawMap(); };
-      img.src = active.img;
+  // Merge incoming characters — never remove chars written by others during suppress
+  if (typeof chars === 'object' && chars !== null) {
+    const incoming = Object.values(chars);
+    if (Date.now() < _suppressRemoteUntil) {
+      // During suppress: only add new characters from remote, don't overwrite local
+      const localIds = new Set(state.characters.map(c => c.id));
+      incoming.forEach(c => { if (!localIds.has(c.id)) state.characters.push(c); });
     } else {
-      redrawMap();
-    }
-    renderTokenList();
-    // Refresh combat sidebar if player is on map
-    if (!state.currentUser?.isDM) {
-      const mapPanel = document.getElementById('panel-map');
-      if (mapPanel && mapPanel.classList.contains('active')) renderCombatSidebar();
-    }
-    // Refresh sheet if visible
-    const sheetPanel = document.getElementById('panel-sheet');
-    if (sheetPanel && sheetPanel.classList.contains('active')) renderMySheet();
-    // Refresh DM party panel if visible
-    const partyPanel = document.getElementById('panel-party');
-    if (partyPanel && partyPanel.classList.contains('active')) {
-      state.dmPartyCharId ? renderDMSheet(state.dmPartyCharId) : renderPartyPanel();
+      state.characters = incoming;
     }
   }
+  localStorage.setItem('chronicler_v2', JSON.stringify(buildSaveData()));
+  _rerender();
+}
+
+// Called when Firebase world path updates (DM data)
+function onRemoteWorld(world) {
+  if (!world) return;
+  if (Date.now() < _suppressRemoteUntil) return;
+  state.gridSize = world.gridSize || 50;
+  state.showGrid = world.showGrid !== false;
+  state.tokenLibrary = world.tokenLibrary || [];
+  if (world.maps && world.maps.length) {
+    state.maps = world.maps;
+    state.activeMapId = world.activeMapId || state.maps[0]?.id;
+  }
+  const active = state.maps.find(m => m.id === state.activeMapId);
+  mapState.tokens = active ? [...(active.tokens || [])] : [];
+  state.mapImg = active ? active.img : null;
+  localStorage.setItem('chronicler_v2', JSON.stringify(buildSaveData()));
+  _rerender();
+}
+
+// Legacy handler kept for compatibility
+function onRemoteData(d) {
+  if (d.characters) onRemoteChars(d.characters);
+  if (d.world) onRemoteWorld(d.world);
 }
 
 function startSync(campaignId) {
@@ -1380,7 +1431,7 @@ function startSync(campaignId) {
   state.syncEnabled = true;
   localStorage.setItem('chronicler_campaign_id', campaignId);
   if (window.fbListen) {
-    window.fbListen(campaignId, onRemoteData);
+    window.fbListen(campaignId, onRemoteChars, onRemoteWorld);
   }
   updateSyncStatus('connected');
 }
@@ -1561,7 +1612,7 @@ function _initAndSync(config, campaignId) {
   const doSync = () => {
     state.campaignId = campaignId;
     state.syncEnabled = true;
-    window.fbListen(campaignId, onRemoteData);
+    window.fbListen(campaignId, onRemoteChars, onRemoteWorld);
     updateSyncStatus('connected');
   };
   if (window._fbReady) {
@@ -1612,7 +1663,7 @@ function _launchApp() {
 
     // Both DM and players: just listen — Firebase will push current state via onRemoteData
     state.syncEnabled = true;
-    window.fbListen(campaignId, onRemoteData);
+    window.fbListen(campaignId, onRemoteChars, onRemoteWorld);
     updateSyncStatus('connected');
 
     // DM also writes meta
@@ -1649,15 +1700,10 @@ function _launchApp() {
 
 function logout() {
   if (!confirm('Log out?')) return;
-  // Write to Firebase immediately (bypass debounce) then reload
-  const data = buildSaveData();
-  localStorage.setItem('chronicler_v2', JSON.stringify(data));
-  if (state.syncEnabled && state.campaignId && window.fbSave && state.currentUser?.isDM) {
-    clearTimeout(_saveDebounce);
-    window.fbSave(state.campaignId, data).then(() => location.reload());
-  } else {
-    location.reload();
-  }
+  clearTimeout(_saveDebounce);
+  _flushSave();
+  // Give Firebase 1s to confirm then reload
+  setTimeout(() => location.reload(), 1000);
 }
 
 // ============================================================
@@ -1920,19 +1966,15 @@ function confirmDeleteChar(id) {
 
 function deleteCharacter(id) {
   state.characters = state.characters.filter(x => x.id !== id);
-  const data = buildSaveData();
-  localStorage.setItem('chronicler_v2', JSON.stringify(data));
+  localStorage.setItem('chronicler_v2', JSON.stringify(buildSaveData()));
   document.getElementById('delete-confirm-overlay')?.remove();
   renderCharacters();
-  if (state.syncEnabled && state.campaignId && window.fbSave) {
+  // Suppress incoming updates for 3s so the deletion sticks
+  _suppressRemoteUntil = Date.now() + 3000;
+  if (state.syncEnabled && state.campaignId && window.fbDeleteCharacter) {
     clearTimeout(_saveDebounce);
-    // Pause listener so our own write doesn't echo back
-    window.fbPauseListen && window.fbPauseListen();
-    window.fbSave(state.campaignId, data).then(() => {
-      // Resume listener after write confirms
-      setTimeout(() => { window.fbResumeListen && window.fbResumeListen(); }, 500);
-    }).catch(() => {
-      window.fbResumeListen && window.fbResumeListen();
+    window.fbDeleteCharacter(state.campaignId, id).then(() => {
+      _suppressRemoteUntil = Date.now() + 500;
     });
   }
 }
@@ -3969,11 +4011,18 @@ function esc(s) {
 
 // Flush any pending save when tab is closed or hidden
 function _flushSave() {
-  if (!state.syncEnabled || !state.campaignId || !window.fbSave || !state.currentUser) return;
+  if (!state.syncEnabled || !state.campaignId || !state.currentUser) return;
   clearTimeout(_saveDebounce);
-  const data = buildSaveData();
-  localStorage.setItem('chronicler_v2', JSON.stringify(data));
-  window.fbSave(state.campaignId, data);
+  localStorage.setItem('chronicler_v2', JSON.stringify(buildSaveData()));
+  if (state.currentUser.isDM) {
+    window.fbSaveWorld && window.fbSaveWorld(state.campaignId, buildWorldData());
+    state.characters.forEach(ch => {
+      window.fbSaveCharacter && window.fbSaveCharacter(state.campaignId, ch.id, ch);
+    });
+  } else {
+    const myChar = state.characters.find(ch => ch.player === state.currentUser?.name);
+    if (myChar) window.fbSaveCharacter && window.fbSaveCharacter(state.campaignId, myChar.id, myChar);
+  }
 }
 window.addEventListener('beforeunload', _flushSave);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') _flushSave(); });
