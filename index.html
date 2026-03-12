@@ -48,7 +48,6 @@
     };
 
     window._fbReady = true;
-    console.log('Firebase ready ✓ — queue length:', (window._fbReadyQueue || []).length);
     // Drain any callbacks that were queued while Firebase was loading
     (window._fbReadyQueue || []).forEach(fn => fn());
     window._fbReadyQueue = null;
@@ -1254,14 +1253,20 @@ function buildSaveData() {
 }
 
 let _saveDebounce = null;
+let _suppressRemoteUntil = 0;
 function save() {
   const data = buildSaveData();
   localStorage.setItem('chronicler_v2', JSON.stringify(data));
   // Firebase sync — debounce 800ms to avoid hammering on rapid changes
   if (state.syncEnabled && state.campaignId && window.fbSave) {
     clearTimeout(_saveDebounce);
+    // Suppress incoming remote updates until 2s after our write lands
+    _suppressRemoteUntil = Date.now() + 2000;
     _saveDebounce = setTimeout(() => {
-      window.fbSave(state.campaignId, data);
+      window.fbSave(state.campaignId, data).then(() => {
+        // Keep suppressing for 1s after write confirms to let Firebase echo pass
+        _suppressRemoteUntil = Date.now() + 1000;
+      });
     }, 800);
   }
 }
@@ -1298,7 +1303,8 @@ function load() {
 // Called by Firebase listener on remote update
 let _remotePending = false;
 function onRemoteData(d) {
-  if (_remotePending) return; // avoid echo of own save
+  // Suppress echo of our own saves during the debounce + write window
+  if (Date.now() < _suppressRemoteUntil) return;
   applyData(d);
   // Persist locally too
   localStorage.setItem('chronicler_v2', JSON.stringify(d));
@@ -1523,7 +1529,6 @@ function _launchApp() {
   // Auto-connect to hardcoded campaign — works for both DM and players
   const campaignId = window._hardcodedCampaignId || 'trinitydnd';
   const doAutoSync = () => {
-    console.log('doAutoSync called — _fbReady:', window._fbReady, 'fbListen:', !!window.fbListen, 'fbSave:', !!window.fbSave);
     if (!window._fbReady || !window.fbListen || !window.fbSave) {
       console.warn('Firebase not available — check CDN or config');
       updateSyncStatus('error');
@@ -1562,11 +1567,9 @@ function _launchApp() {
       });
   };
 
-  console.log('_launchApp sync check — _fbReady:', window._fbReady, 'fbListen:', !!window.fbListen);
   if (window._fbReady && window.fbListen) {
     doAutoSync();
   } else {
-    console.log('Queuing doAutoSync for when Firebase loads');
     window._fbReadyQueue = window._fbReadyQueue || [];
     window._fbReadyQueue.push(doAutoSync);
   }
