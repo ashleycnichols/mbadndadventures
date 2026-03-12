@@ -2058,7 +2058,7 @@ function renderCreatorStep() {
         <div class="input-group"><label class="form-label">Character Name *</label>
           <input class="parchment-input" id="f-name" value="${esc(d.name)}" placeholder="Aelindra Swiftwind..."></div>
         <div class="input-group"><label class="form-label">Player Name</label>
-          <input class="parchment-input" id="f-player" value="${esc(d.player)}" placeholder="Your name..."></div>
+          <input class="parchment-input" id="f-player" value="${esc(d.player)}" placeholder="Your name..." ${!state.currentUser?.isDM ? 'readonly style="opacity:0.7;cursor:default"' : ''}></div>
       </div>
       <div class="form-row">
         <div class="input-group"><label class="form-label">Level (1-20)</label>
@@ -2417,7 +2417,12 @@ function saveCreatorFields() {
   const step = creatorState.step;
   if (step === 0) {
     d.name = document.getElementById('f-name')?.value || d.name;
-    d.player = document.getElementById('f-player')?.value || d.player;
+    // For players, always lock player field to their login name — never trust the form value
+    if (state.currentUser?.isDM) {
+      d.player = document.getElementById('f-player')?.value || d.player;
+    } else {
+      d.player = state.currentUser.name;
+    }
     d.level = +document.getElementById('f-level')?.value || d.level;
   }
   if (step === 4) {
@@ -2445,6 +2450,8 @@ function saveCharacter() {
   const d = creatorState.draft;
   if (!d.id) d.id = 'char_' + Date.now();
   if (!d.currentHp) d.currentHp = d.maxHp;
+  // Always stamp the correct player name — never allow mismatch
+  if (!state.currentUser?.isDM) d.player = state.currentUser.name;
 
   const idx = state.characters.findIndex(c => c.id === d.id);
   if (idx >= 0) state.characters[idx] = d;
