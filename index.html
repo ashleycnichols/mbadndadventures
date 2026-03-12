@@ -1267,8 +1267,11 @@ function buildSaveData() {
     const m = state.maps.find(m => m.id === state.activeMapId);
     if (m) m.tokens = mapState.tokens;
   }
+  // Always store characters as keyed object so player patches and DM saves stay consistent
+  const charactersKeyed = {};
+  state.characters.forEach(c => { charactersKeyed[c.id] = c; });
   return {
-    characters: state.characters,
+    characters: charactersKeyed,
     maps: state.maps,
     activeMapId: state.activeMapId,
     tokenLibrary: state.tokenLibrary,
