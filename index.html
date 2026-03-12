@@ -1442,7 +1442,7 @@ function enterApp() {
       if (pass !== storedPass) {
         err.textContent = 'Incorrect passphrase.';
         err.classList.remove('hidden');
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
         return;
       }
       // Sync the confirmed pass to localStorage
@@ -1450,7 +1450,7 @@ function enterApp() {
       state.currentUser = { name: 'Dungeon Master', isDM: true };
       _launchApp();
     };
-    btn.disabled = true;
+    if (btn) btn.disabled = true;
     // Try to fetch authoritative pass from Firebase
     if (window._fbReady && window.fbFetchMeta) {
       window.fbFetchMeta(window._hardcodedCampaignId + '_auth').then(meta => {
@@ -1459,7 +1459,7 @@ function enterApp() {
         checkAndLogin(getDMPass());
       });
     } else {
-      btn.disabled = false;
+      if (btn) btn.disabled = false;
       checkAndLogin(getDMPass());
     }
     return;
@@ -1477,8 +1477,8 @@ function _playerAutoJoin(joinCode) {
   const btn = document.getElementById('enter-btn');
   const connecting = document.getElementById('login-connecting');
   const err = document.getElementById('login-error');
-  btn.disabled = true;
-  connecting.style.display = 'block';
+  if (btn) btn.disabled = true;
+  if (connecting) connecting.style.display = 'block';
 
   // We need to initialise Firebase with the config stored in meta.
   // The meta path stores the config + campaignId written by the DM.
@@ -1500,8 +1500,8 @@ function _playerAutoJoin(joinCode) {
 
   if (savedFbConfig && savedCampaignId === joinCode) {
     // Already have config locally — just connect
-    connecting.style.display = 'none';
-    btn.disabled = false;
+    if (connecting) connecting.style.display = 'none';
+    if (btn) btn.disabled = false;
     try {
       const config = JSON.parse(savedFbConfig);
       _launchApp();
@@ -1514,8 +1514,8 @@ function _playerAutoJoin(joinCode) {
   // DM must have already connected and pushed meta
   // We stored databaseURL in the meta record itself
   _fetchMetaByCode(joinCode).then(meta => {
-    connecting.style.display = 'none';
-    btn.disabled = false;
+    if (connecting) connecting.style.display = 'none';
+    if (btn) btn.disabled = false;
     if (meta && meta.config && meta.campaignId) {
       localStorage.setItem('chronicler_fb_config', JSON.stringify(meta.config));
       localStorage.setItem('chronicler_campaign_id', meta.campaignId);
@@ -1526,8 +1526,8 @@ function _playerAutoJoin(joinCode) {
     }
   }).catch(e => {
     console.warn('Auto-join failed:', e);
-    connecting.style.display = 'none';
-    btn.disabled = false;
+    if (connecting) connecting.style.display = 'none';
+    if (btn) btn.disabled = false;
     _launchApp(); // proceed locally
   });
 }
