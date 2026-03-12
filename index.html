@@ -1656,8 +1656,15 @@ function _launchApp() {
 
 function logout() {
   if (!confirm('Log out?')) return;
-  save();
-  location.reload();
+  // Write to Firebase immediately (bypass debounce) then reload
+  const data = buildSaveData();
+  localStorage.setItem('chronicler_v2', JSON.stringify(data));
+  if (state.syncEnabled && state.campaignId && window.fbSave && state.currentUser?.isDM) {
+    clearTimeout(_saveDebounce);
+    window.fbSave(state.campaignId, data).then(() => location.reload());
+  } else {
+    location.reload();
+  }
 }
 
 // ============================================================
@@ -3966,6 +3973,22 @@ function esc(s) {
   if (!s) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+// Flush any pending save when tab is closed or hidden
+function _flushSave() {
+  if (!state.syncEnabled || !state.campaignId || !window.fbSave) return;
+  clearTimeout(_saveDebounce);
+  const data = buildSaveData();
+  localStorage.setItem('chronicler_v2', JSON.stringify(data));
+  if (state.currentUser?.isDM) {
+    window.fbSave(state.campaignId, data);
+  } else {
+    const myChar = data.characters[Object.keys(data.characters).find(k => data.characters[k].player === state.currentUser?.name)];
+    if (myChar && window.fbSaveCharacter) window.fbSaveCharacter(state.campaignId, myChar.id, myChar);
+  }
+}
+window.addEventListener('beforeunload', _flushSave);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') _flushSave(); });
 </script>
 </body>
 </html>
