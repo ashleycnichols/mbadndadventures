@@ -1264,21 +1264,18 @@ function save() {
   localStorage.setItem('chronicler_v2', JSON.stringify(data));
   if (state.syncEnabled && state.campaignId && window.fbSave) {
     clearTimeout(_saveDebounce);
-    _suppressRemoteUntil = Date.now() + 2000;
     _saveDebounce = setTimeout(() => {
       if (state.currentUser?.isDM) {
         // DM owns the full campaign state
+        _suppressRemoteUntil = Date.now() + 2000;
         window.fbSave(state.campaignId, data).then(() => {
           _suppressRemoteUntil = Date.now() + 1000;
         });
       } else {
-        // Players only write their own character — find it by player name
+        // Players only write their own character — no need to suppress remote updates
         const myChar = data.characters.find(c => c.player === state.currentUser?.name);
         if (myChar) {
-          // Merge just this character into Firebase using a targeted path
-          window.fbSaveCharacter && window.fbSaveCharacter(state.campaignId, myChar.id, myChar).then(() => {
-            _suppressRemoteUntil = Date.now() + 1000;
-          });
+          window.fbSaveCharacter && window.fbSaveCharacter(state.campaignId, myChar.id, myChar);
         }
       }
     }, 800);
@@ -1561,6 +1558,8 @@ function _launchApp() {
       localStorage.setItem('chronicler_fb_config', JSON.stringify(window._hardcodedConfig));
     }
     updateSyncStatus('connecting');
+    // Reset suppress timer so Firebase state always wins on fresh login
+    _suppressRemoteUntil = 0;
 
     if (state.currentUser.isDM) {
       // DM: write meta, then read Firebase first — only push local if Firebase is empty
@@ -1854,7 +1853,16 @@ function confirmDeleteChar(id) {
 
 function deleteCharacter(id) {
   state.characters = state.characters.filter(x => x.id !== id);
-  save();
+  // Write immediately — don't debounce deletions or they may not persist
+  const data = buildSaveData();
+  localStorage.setItem('chronicler_v2', JSON.stringify(data));
+  if (state.syncEnabled && state.campaignId && window.fbSave) {
+    clearTimeout(_saveDebounce);
+    _suppressRemoteUntil = Date.now() + 3000;
+    window.fbSave(state.campaignId, data).then(() => {
+      _suppressRemoteUntil = Date.now() + 1000;
+    });
+  }
   document.getElementById('delete-confirm-overlay')?.remove();
   renderCharacters();
 }
