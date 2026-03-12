@@ -2500,6 +2500,11 @@ const STARTING_EQUIPMENT = {
 
 function renderMySheet() {
   const container = document.getElementById('sheet-content');
+  if (!container) { console.error('renderMySheet: sheet-content element not found'); return; }
+  if (!state.currentUser) { container.innerHTML = '<div class="empty-state"><p>Not logged in.</p></div>'; return; }
+
+  console.log('renderMySheet: user=', state.currentUser.name, 'isDM=', state.currentUser.isDM, 'chars=', state.characters.map(ch => ch.player + '/' + ch.name));
+
   const c = state.currentUser.isDM
     ? state.characters[0]
     : state.characters.find(ch => ch.player === state.currentUser.name);
@@ -2507,6 +2512,7 @@ function renderMySheet() {
   if (!c) {
     container.innerHTML = `<div class="empty-state">
       <p>No character found for <strong>${state.currentUser.name}</strong>.</p>
+      <p style="font-size:0.85rem;color:var(--text-muted);margin-top:0.5rem">Characters in campaign: ${state.characters.map(ch => ch.player || 'unknown').join(', ') || 'none'}</p>
       <p style="margin-top:1rem"><button class="btn-primary btn-gold" style="width:auto;padding:0.7rem 1.5rem" onclick="openCreator()">Create Your Character</button></p>
     </div>`;
     return;
