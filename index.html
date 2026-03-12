@@ -1290,19 +1290,12 @@ function save() {
   if (state.syncEnabled && state.campaignId && window.fbSave) {
     clearTimeout(_saveDebounce);
     _saveDebounce = setTimeout(() => {
-      if (state.currentUser?.isDM) {
-        // DM owns the full campaign state
-        _suppressRemoteUntil = Date.now() + 2000;
-        window.fbSave(state.campaignId, data).then(() => {
-          _suppressRemoteUntil = Date.now() + 1000;
-        });
-      } else {
-        // Players only write their own character — no need to suppress remote updates
-        const myChar = data.characters.find(c => c.player === state.currentUser?.name);
-        if (myChar) {
-          window.fbSaveCharacter && window.fbSaveCharacter(state.campaignId, myChar.id, myChar);
-        }
-      }
+      window.fbPauseListen && window.fbPauseListen();
+      window.fbSave(state.campaignId, data).then(() => {
+        setTimeout(() => { window.fbResumeListen && window.fbResumeListen(); }, 300);
+      }).catch(() => {
+        window.fbResumeListen && window.fbResumeListen();
+      });
     }, 800);
   }
 }
@@ -3976,16 +3969,11 @@ function esc(s) {
 
 // Flush any pending save when tab is closed or hidden
 function _flushSave() {
-  if (!state.syncEnabled || !state.campaignId || !window.fbSave) return;
+  if (!state.syncEnabled || !state.campaignId || !window.fbSave || !state.currentUser) return;
   clearTimeout(_saveDebounce);
   const data = buildSaveData();
   localStorage.setItem('chronicler_v2', JSON.stringify(data));
-  if (state.currentUser?.isDM) {
-    window.fbSave(state.campaignId, data);
-  } else {
-    const myChar = data.characters[Object.keys(data.characters).find(k => data.characters[k].player === state.currentUser?.name)];
-    if (myChar && window.fbSaveCharacter) window.fbSaveCharacter(state.campaignId, myChar.id, myChar);
-  }
+  window.fbSave(state.campaignId, data);
 }
 window.addEventListener('beforeunload', _flushSave);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') _flushSave(); });
