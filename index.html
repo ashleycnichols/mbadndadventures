@@ -1918,18 +1918,20 @@ function backToPartyOverview() {
 // ============================================================
 function renderCharacters() {
   const grid = document.getElementById('characters-grid');
-  const chars = state.currentUser.isDM
+  const isDM = state.currentUser.isDM;
+  const chars = isDM
     ? state.characters
-    : state.characters.filter(c => c.player === state.currentUser.name || true);
+    : state.characters.filter(ch => ch.player === state.currentUser.name);
 
   let html = '';
   chars.forEach(c => {
     const hpPct = Math.max(0, Math.round(c.currentHp / c.maxHp * 100));
     const hpColor = hpPct > 60 ? '#2d6a2d' : hpPct > 25 ? '#8b6914' : '#8b1a1a';
-    html += `<div class="character-card" style="position:relative" onclick="editCharacter('${c.id}')">
-      <button onclick="event.stopPropagation();confirmDeleteChar('${c.id}')" style="position:absolute;top:0.5rem;right:0.5rem;background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:1.1rem;line-height:1;padding:0.2rem 0.4rem;border-radius:2px;transition:color 0.15s" onmouseover="this.style.color='var(--blood)'" onmouseout="this.style.color='var(--text-muted)'" title="Delete character">✕</button>
-      <div class="char-name" style="padding-right:1.5rem">${c.name || 'Unnamed'}</div>
-      <div class="char-meta">${c.player || ''} · ${getRace(c.race)} ${getClass(c.class)} ${c.level}</div>
+    const cardClick = isDM ? `editCharacter('${c.id}')` : `showPanel('sheet',document.getElementById('sheet-tab'))`;
+    html += `<div class="character-card" style="position:relative" onclick="${cardClick}">
+      ${isDM ? `<button onclick="event.stopPropagation();confirmDeleteChar('${c.id}')" style="position:absolute;top:0.5rem;right:0.5rem;background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:1.1rem;line-height:1;padding:0.2rem 0.4rem;border-radius:2px;transition:color 0.15s" onmouseover="this.style.color='var(--blood)'" onmouseout="this.style.color='var(--text-muted)'" title="Delete character">\u2715</button>` : ''}
+      <div class="char-name" style="padding-right:${isDM ? '1.5rem' : '0'}">${c.name || 'Unnamed'}</div>
+      <div class="char-meta">${c.player || ''} \u00b7 ${getRace(c.race)} ${getClass(c.class)} ${c.level}</div>
       <div class="char-hp-bar"><div class="char-hp-fill" style="width:${hpPct}%;background:${hpColor}"></div></div>
       <div class="char-hp-text">HP: ${c.currentHp} / ${c.maxHp}</div>
     </div>`;
