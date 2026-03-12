@@ -914,17 +914,19 @@
     <div class="panel" id="panel-settings">
       <div class="char-sheet" style="max-width:500px">
         <div class="section-header">Settings</div>
-        <div class="input-group">
-          <label class="form-label">DM Passphrase (set / change)</label>
-          <input class="parchment-input" id="new-dm-pass" type="password" placeholder="New passphrase...">
+        <div id="dm-pass-settings-section">
+          <div class="input-group">
+            <label class="form-label">DM Passphrase (set / change)</label>
+            <input class="parchment-input" id="new-dm-pass" type="password" placeholder="New passphrase...">
+          </div>
+          <div class="input-group">
+            <label class="form-label">Confirm Passphrase</label>
+            <input class="parchment-input" id="confirm-dm-pass" type="password" placeholder="Confirm...">
+          </div>
+          <button class="btn-primary btn-gold" style="width:auto;padding:0.7rem 1.5rem" onclick="saveDMPass()">Save Passphrase</button>
+          <div id="settings-msg" style="margin-top:0.5rem;font-style:italic;font-size:0.85rem;color:var(--green-health)"></div>
+          <hr style="margin:1.5rem 0;border:none;border-top:1px solid var(--border)">
         </div>
-        <div class="input-group">
-          <label class="form-label">Confirm Passphrase</label>
-          <input class="parchment-input" id="confirm-dm-pass" type="password" placeholder="Confirm...">
-        </div>
-        <button class="btn-primary btn-gold" style="width:auto;padding:0.7rem 1.5rem" onclick="saveDMPass()">Save Passphrase</button>
-        <div id="settings-msg" style="margin-top:0.5rem;font-style:italic;font-size:0.85rem;color:var(--green-health)"></div>
-        <hr style="margin:1.5rem 0;border:none;border-top:1px solid var(--border)">
         <div class="sidebar-title">🔄 Real-Time Sync</div>
         <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1rem;line-height:1.5">Sync is <strong style="color:var(--green-health)">built in</strong> — everyone auto-connects to the TrinityDND campaign on login. No setup needed.</p>
         <div class="input-group" style="display:none">
@@ -1319,7 +1321,6 @@ function load() {
 }
 
 // Called by Firebase listener on remote update
-let _remotePending = false;
 function onRemoteData(d) {
   // Suppress echo of our own saves during the debounce + write window
   if (Date.now() < _suppressRemoteUntil) return;
@@ -1665,6 +1666,9 @@ function connectSync() {
 }
 
 function populateSyncSettings() {
+  // Only DMs can see/change the passphrase
+  const dmSection = document.getElementById('dm-pass-settings-section');
+  if (dmSection) dmSection.style.display = state.currentUser?.isDM ? '' : 'none';
   const idInput = document.getElementById('campaign-id-input');
   const cfgInput = document.getElementById('firebase-config-input');
   if (idInput && state.campaignId) idInput.value = state.campaignId;
