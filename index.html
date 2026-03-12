@@ -1342,6 +1342,8 @@ function load() {
 
 // Called by Firebase listener on remote update
 function onRemoteData(d) {
+  // Clear the localStorage fallback timeout — Firebase responded
+  if (window._fbLoadTimeout) { clearTimeout(window._fbLoadTimeout); window._fbLoadTimeout = null; }
   // Suppress echo of our own saves during the debounce + write window
   if (Date.now() < _suppressRemoteUntil) return;
   applyData(d);
@@ -1575,7 +1577,8 @@ function _initAndSync(config, campaignId) {
 }
 
 function _launchApp() {
-  load();
+  // Don't load from localStorage — Firebase is authoritative.
+  // We only use localStorage as a fallback if Firebase never responds.
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   document.getElementById('app').style.flexDirection = 'column';
@@ -1595,7 +1598,11 @@ function _launchApp() {
   const campaignId = window._hardcodedCampaignId || 'trinitydnd';
   const doAutoSync = () => {
     if (!window._fbReady || !window.fbListen || !window.fbSave) {
-      console.warn('Firebase not available — check CDN or config');
+      console.warn('Firebase not available — falling back to localStorage');
+      load();
+      renderCharacters();
+      renderMapTabs();
+      initMap();
       updateSyncStatus('error');
       return;
     }
@@ -1605,24 +1612,32 @@ function _launchApp() {
       localStorage.setItem('chronicler_fb_config', JSON.stringify(window._hardcodedConfig));
     }
     updateSyncStatus('connecting');
-    // Reset suppress timer so Firebase state always wins on fresh login
     _suppressRemoteUntil = 0;
 
+    // Both DM and players: just listen — Firebase will push current state via onRemoteData
+    state.syncEnabled = true;
+    window.fbListen(campaignId, onRemoteData);
+    updateSyncStatus('connected');
+
+    // DM also writes meta
     if (state.currentUser.isDM) {
-      // DM: write meta, then read Firebase first — only push local if Firebase is empty
       window.fbSaveMeta && window.fbSaveMeta(campaignId, {
         config: window._hardcodedConfig, campaignId, updatedAt: Date.now()
       });
-      // Start listening — onRemoteData will load Firebase state
-      state.syncEnabled = true;
-      window.fbListen(campaignId, onRemoteData);
-      updateSyncStatus('connected');
-    } else {
-      // Players: just listen, never write on login
-      state.syncEnabled = true;
-      window.fbListen(campaignId, onRemoteData);
-      updateSyncStatus('connected');
     }
+
+    // Fallback: if Firebase doesn't respond in 5s, load from localStorage
+    const fbTimeout = setTimeout(() => {
+      if (!state.characters.length) {
+        load();
+        renderCharacters();
+        renderMapTabs();
+        initMap();
+      }
+    }, 5000);
+    // Cancel fallback once Firebase responds (onRemoteData will fire)
+    const origOnRemote = onRemoteData;
+    window._fbLoadTimeout = fbTimeout;
   };
 
   if (window._fbReady && window.fbListen) {
@@ -1632,7 +1647,6 @@ function _launchApp() {
     window._fbReadyQueue.push(doAutoSync);
   }
 
-  renderCharacters();
   renderMapTabs();
   initMap();
 }
