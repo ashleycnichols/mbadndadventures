@@ -47,6 +47,11 @@
         .catch(e => console.warn('fbSaveMeta error:', e));
     };
 
+    window.fbSaveCharacter = function(campaignId, charId, charData) {
+      return set(ref(db, 'campaigns/' + campaignId + '/characters/' + charId), charData)
+        .catch(e => console.warn('fbSaveCharacter error:', e));
+    };
+
     window._fbReady = true;
     // Drain any callbacks that were queued while Firebase was loading
     (window._fbReadyQueue || []).forEach(fn => fn());
@@ -1257,22 +1262,38 @@ let _suppressRemoteUntil = 0;
 function save() {
   const data = buildSaveData();
   localStorage.setItem('chronicler_v2', JSON.stringify(data));
-  // Firebase sync — debounce 800ms to avoid hammering on rapid changes
   if (state.syncEnabled && state.campaignId && window.fbSave) {
     clearTimeout(_saveDebounce);
-    // Suppress incoming remote updates until 2s after our write lands
     _suppressRemoteUntil = Date.now() + 2000;
     _saveDebounce = setTimeout(() => {
-      window.fbSave(state.campaignId, data).then(() => {
-        // Keep suppressing for 1s after write confirms to let Firebase echo pass
-        _suppressRemoteUntil = Date.now() + 1000;
-      });
+      if (state.currentUser?.isDM) {
+        // DM owns the full campaign state
+        window.fbSave(state.campaignId, data).then(() => {
+          _suppressRemoteUntil = Date.now() + 1000;
+        });
+      } else {
+        // Players only write their own character — find it by player name
+        const myChar = data.characters.find(c => c.player === state.currentUser?.name);
+        if (myChar) {
+          // Merge just this character into Firebase using a targeted path
+          window.fbSaveCharacter && window.fbSaveCharacter(state.campaignId, myChar.id, myChar).then(() => {
+            _suppressRemoteUntil = Date.now() + 1000;
+          });
+        }
+      }
     }, 800);
   }
 }
 
 function applyData(d) {
-  state.characters = d.characters || [];
+  // characters may be an array (DM save) or keyed object (player patch)
+  if (Array.isArray(d.characters)) {
+    state.characters = d.characters;
+  } else if (d.characters && typeof d.characters === 'object') {
+    state.characters = Object.values(d.characters);
+  } else {
+    state.characters = [];
+  }
   state.gridSize = d.gridSize || 50;
   state.showGrid = d.showGrid !== false;
   state.tokenLibrary = d.tokenLibrary || [];
@@ -1312,7 +1333,7 @@ function onRemoteData(d) {
   if (state.currentUser) {
     renderCharacters();
     renderMapTabs();
-    // Reload map image if active map changed
+    // Always reload map/tokens so they're ready when player switches to map tab
     const active = state.maps.find(m => m.id === state.activeMapId);
     if (active?.img && (!mapImage || mapImage.src !== active.img)) {
       const img = new Image();
@@ -1541,30 +1562,21 @@ function _launchApp() {
     }
     updateSyncStatus('connecting');
 
-    // Write a heartbeat to verify we actually have write access
-    window.fbSave(campaignId, { _heartbeat: { ts: Date.now(), user: state.currentUser.name } })
-      .then(() => {
-        state.syncEnabled = true;
-        window.fbListen(campaignId, onRemoteData);
-        updateSyncStatus('connected');
-        // DM: write meta + push local data up
-        if (state.currentUser.isDM) {
-          if (window.fbSaveMeta) {
-            window.fbSaveMeta(campaignId, {
-              config: window._hardcodedConfig,
-              campaignId,
-              updatedAt: Date.now()
-            });
-          }
-          // Push local data to Firebase on first DM connect
-          const localData = JSON.parse(localStorage.getItem('chronicler_v2') || '{}');
-          if (localData.characters?.length) window.fbSave(campaignId, localData);
-        }
-      })
-      .catch(err => {
-        console.warn('Firebase write failed — check Rules:', err);
-        updateSyncStatus('error');
+    if (state.currentUser.isDM) {
+      // DM: write meta, then read Firebase first — only push local if Firebase is empty
+      window.fbSaveMeta && window.fbSaveMeta(campaignId, {
+        config: window._hardcodedConfig, campaignId, updatedAt: Date.now()
       });
+      // Start listening — onRemoteData will load Firebase state
+      state.syncEnabled = true;
+      window.fbListen(campaignId, onRemoteData);
+      updateSyncStatus('connected');
+    } else {
+      // Players: just listen, never write on login
+      state.syncEnabled = true;
+      window.fbListen(campaignId, onRemoteData);
+      updateSyncStatus('connected');
+    }
   };
 
   if (window._fbReady && window.fbListen) {
