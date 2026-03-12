@@ -32,14 +32,34 @@
         .catch(e => console.warn('fbSave error:', e));
     };
 
+    let _listenRef = null;
+    let _listenCallback = null;
+    let _listenCampaignId = null;
+
     window.fbListen = function(campaignId, callback) {
-      onValue(ref(db, 'campaigns/' + campaignId), snap => {
+      _listenCampaignId = campaignId;
+      _listenCallback = callback;
+      _listenRef = ref(db, 'campaigns/' + campaignId);
+      onValue(_listenRef, snap => {
         if (snap.exists()) callback(snap.val());
       });
     };
 
-    window.fbStopListen = function(campaignId) {
-      off(ref(db, 'campaigns/' + campaignId));
+    window.fbStopListen = function() {
+      if (_listenRef) { off(_listenRef); _listenRef = null; }
+    };
+
+    window.fbPauseListen = function() {
+      if (_listenRef) { off(_listenRef); _listenRef = null; }
+    };
+
+    window.fbResumeListen = function() {
+      if (_listenCampaignId && _listenCallback && !_listenRef) {
+        _listenRef = ref(db, 'campaigns/' + _listenCampaignId);
+        onValue(_listenRef, snap => {
+          if (snap.exists()) _listenCallback(snap.val());
+        });
+      }
     };
 
     window.fbSaveMeta = function(joinCode, metaData) {
@@ -1388,7 +1408,13 @@ function updateSyncStatus(status) {
 }
 
 function getDMPass() { return localStorage.getItem('chronicler_dm_pass') || 'dm'; }
-function setDMPass(p) { localStorage.setItem('chronicler_dm_pass', p); }
+function setDMPass(p) {
+  localStorage.setItem('chronicler_dm_pass', p);
+  // Also write to Firebase so all DM devices stay in sync
+  if (window.fbSaveMeta && window._hardcodedCampaignId) {
+    window.fbSaveMeta(window._hardcodedCampaignId + '_auth', { dmPass: p });
+  }
+}
 
 // ============================================================
 // LOGIN
@@ -1410,13 +1436,33 @@ function enterApp() {
 
   if (selectedRole === 'dm') {
     const pass = document.getElementById('dm-pass-input').value;
-    if (pass !== getDMPass()) {
-      err.textContent = 'Incorrect passphrase.';
-      err.classList.remove('hidden');
-      return;
+    const btn = document.getElementById('enter-btn');
+    // Try Firebase for the authoritative pass first, fall back to localStorage
+    const checkAndLogin = (storedPass) => {
+      if (pass !== storedPass) {
+        err.textContent = 'Incorrect passphrase.';
+        err.classList.remove('hidden');
+        btn.disabled = false;
+        return;
+      }
+      // Sync the confirmed pass to localStorage
+      localStorage.setItem('chronicler_dm_pass', storedPass);
+      state.currentUser = { name: 'Dungeon Master', isDM: true };
+      _launchApp();
+    };
+    btn.disabled = true;
+    // Try to fetch authoritative pass from Firebase
+    if (window._fbReady && window.fbFetchMeta) {
+      window.fbFetchMeta(window._hardcodedCampaignId + '_auth').then(meta => {
+        checkAndLogin(meta?.dmPass || getDMPass());
+      }).catch(() => {
+        checkAndLogin(getDMPass());
+      });
+    } else {
+      btn.disabled = false;
+      checkAndLogin(getDMPass());
     }
-    state.currentUser = { name: 'Dungeon Master', isDM: true };
-    _launchApp();
+    return;
   } else {
     const name = document.getElementById('player-name-input').value.trim();
     if (!name) { err.textContent = 'Enter your name.'; err.classList.remove('hidden'); return; }
@@ -1857,18 +1903,21 @@ function confirmDeleteChar(id) {
 
 function deleteCharacter(id) {
   state.characters = state.characters.filter(x => x.id !== id);
-  // Write immediately — don't debounce deletions or they may not persist
   const data = buildSaveData();
   localStorage.setItem('chronicler_v2', JSON.stringify(data));
-  if (state.syncEnabled && state.campaignId && window.fbSave) {
-    clearTimeout(_saveDebounce);
-    _suppressRemoteUntil = Date.now() + 3000;
-    window.fbSave(state.campaignId, data).then(() => {
-      _suppressRemoteUntil = Date.now() + 1000;
-    });
-  }
   document.getElementById('delete-confirm-overlay')?.remove();
   renderCharacters();
+  if (state.syncEnabled && state.campaignId && window.fbSave) {
+    clearTimeout(_saveDebounce);
+    // Pause listener so our own write doesn't echo back
+    window.fbPauseListen && window.fbPauseListen();
+    window.fbSave(state.campaignId, data).then(() => {
+      // Resume listener after write confirms
+      setTimeout(() => { window.fbResumeListen && window.fbResumeListen(); }, 500);
+    }).catch(() => {
+      window.fbResumeListen && window.fbResumeListen();
+    });
+  }
 }
 
 function getRace(id) { return RACES.find(r => r.id === id)?.name || id || '?'; }
