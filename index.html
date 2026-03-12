@@ -1876,6 +1876,9 @@ function renderDMSheet(charId) {
   if (!c.tempHp) c.tempHp = 0;
   if (!c.deathSaves) c.deathSaves = {success:0, fail:0};
   if (!c.hitDiceUsed) c.hitDiceUsed = 0;
+  if (!Array.isArray(c.spells)) c.spells = [];
+  if (!Array.isArray(c.weapons)) c.weapons = [];
+  if (!c.stats) c.stats = {str:10,dex:10,con:10,int:10,wis:10,cha:10};
   if (c.inventory === undefined) c.inventory = STARTING_EQUIPMENT[c.class] || 'Explorer pack, 10gp';
   if (!c.conditions) c.conditions = [];
   if (!c.exhaustion) c.exhaustion = 0;
@@ -2524,6 +2527,9 @@ function renderMySheet() {
   if (!c.deathSaves) c.deathSaves = {success:0, fail:0};
   if (!c.hitDiceUsed) c.hitDiceUsed = 0;
   if (c.inventory === undefined) c.inventory = STARTING_EQUIPMENT[c.class] || 'Explorer\'s pack, 10gp';
+  if (!Array.isArray(c.spells)) c.spells = [];
+  if (!Array.isArray(c.weapons)) c.weapons = [];
+  if (!c.stats) c.stats = {str:10,dex:10,con:10,int:10,wis:10,cha:10};
   if (!c.conditions) c.conditions = [];
   if (!c.exhaustion) c.exhaustion = 0;
 
@@ -3279,6 +3285,9 @@ function renderCombatSidebar() {
   if (!c.tempHp) c.tempHp = 0;
   if (!c.deathSaves) c.deathSaves = {success:0, fail:0};
   if (!c.hitDiceUsed) c.hitDiceUsed = 0;
+  if (!Array.isArray(c.spells)) c.spells = [];
+  if (!Array.isArray(c.weapons)) c.weapons = [];
+  if (!c.stats) c.stats = {str:10,dex:10,con:10,int:10,wis:10,cha:10};
   if (!c.conditions) c.conditions = [];
 
   const cls = CLASSES.find(cl => cl.id === c.class);
