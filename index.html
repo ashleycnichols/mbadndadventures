@@ -1412,6 +1412,13 @@ function onRemoteWorld(world) {
   if (Date.now() < _suppressRemoteUntil) return;
   state.gridSize = world.gridSize || 50;
   state.showGrid = world.showGrid !== false;
+  // Sync grid UI inputs for all users
+  const gsInput = document.getElementById('grid-size');
+  if (gsInput) gsInput.value = state.gridSize;
+  const gtDM = document.getElementById('grid-toggle');
+  if (gtDM) gtDM.checked = state.showGrid;
+  const gtPlayer = document.getElementById('grid-toggle-player');
+  if (gtPlayer) gtPlayer.checked = state.showGrid;
   state.tokenLibrary = world.tokenLibrary || [];
   if (world.maps && world.maps.length) {
     state.maps = world.maps;
@@ -1937,8 +1944,13 @@ function renderCharacters() {
     const cardClick = isDM ? `editCharacter('${c.id}')` : `showPanel('sheet',document.getElementById('sheet-tab'))`;
     html += `<div class="character-card" style="position:relative" onclick="${cardClick}">
       ${isDM ? `<button onclick="event.stopPropagation();confirmDeleteChar('${c.id}')" style="position:absolute;top:0.5rem;right:0.5rem;background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:1.1rem;line-height:1;padding:0.2rem 0.4rem;border-radius:2px;transition:color 0.15s" onmouseover="this.style.color='var(--blood)'" onmouseout="this.style.color='var(--text-muted)'" title="Delete character">\u2715</button>` : ''}
-      <div class="char-name" style="padding-right:${isDM ? '1.5rem' : '0'}">${c.name || 'Unnamed'}</div>
-      <div class="char-meta">${c.player || ''} \u00b7 ${getRace(c.race)} ${getClass(c.class)} ${c.level}</div>
+      <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.3rem">
+        ${c.portrait ? `<img src="${c.portrait}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid var(--gold);flex-shrink:0">` : `<div style="width:36px;height:36px;border-radius:50%;background:var(--parchment-dark);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">🧙</div>`}
+        <div style="min-width:0">
+          <div class="char-name" style="padding-right:${isDM ? '1.5rem' : '0'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.name || 'Unnamed'}</div>
+          <div class="char-meta">${c.player || ''} \u00b7 ${getRace(c.race)} ${getClass(c.class)} ${c.level}</div>
+        </div>
+      </div>
       <div class="char-hp-bar"><div class="char-hp-fill" style="width:${hpPct}%;background:${hpColor}"></div></div>
       <div class="char-hp-text">HP: ${c.currentHp} / ${c.maxHp}</div>
     </div>`;
@@ -2505,6 +2517,58 @@ const STARTING_EQUIPMENT = {
   'blood-hunter': 'Martial weapon, Leather armor, Dungeoneer\'s pack, 10gp',
 };
 
+function uploadPortrait(charId, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    // Compress portrait: 256px circle, high quality
+    compressImage(e.target.result, 256, 0.85, portrait => {
+      const ch = state.characters.find(x => x.id === charId);
+      if (!ch) return;
+      ch.portrait = portrait;
+
+      // Sync portrait into token library — update existing entry or add new one
+      const libKey = 'char_portrait_' + charId;
+      const existing = state.tokenLibrary.find(l => l.id === libKey);
+      if (existing) {
+        existing.img = portrait;
+        existing.name = ch.name;
+      } else {
+        state.tokenLibrary.push({ id: libKey, name: ch.name, img: portrait, charId });
+      }
+
+      // Auto-place token on active map if character doesn't already have one
+      const active = state.maps.find(m => m.id === state.activeMapId);
+      if (active) {
+        const alreadyOnMap = mapState.tokens.some(t => t.charId === charId);
+        if (!alreadyOnMap) {
+          mapState.tokens.push({
+            id: 'tok_' + Date.now(),
+            name: ch.name,
+            type: 'player',
+            charId,
+            x: 80, y: 80,
+            img: portrait,
+            hidden: false,
+          });
+          active.tokens = mapState.tokens;
+        } else {
+          // Update portrait on existing token
+          mapState.tokens.forEach(t => { if (t.charId === charId) t.img = portrait; });
+          active.tokens = mapState.tokens;
+        }
+      }
+
+      save();
+      renderMySheet();
+      renderTokenLibrary();
+      redrawMap();
+    });
+  };
+  reader.readAsDataURL(file);
+}
+
 function renderMySheet() {
   const container = document.getElementById('sheet-content');
   if (!container) { console.error('renderMySheet: sheet-content element not found'); return; }
@@ -2580,9 +2644,21 @@ function renderMySheet() {
   <div style="max-width:900px;margin:0 auto;padding:1rem">
     <!-- HEADER -->
     <div style="background:var(--parchment-dark);border:2px solid var(--gold);border-radius:2px;padding:1rem 1.5rem;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem">
-      <div>
-        <div style="font-family:'Cinzel Decorative',serif;font-size:1.4rem;color:var(--text-main)">${esc(c.name) || 'Unnamed Hero'}</div>
-        <div style="font-family:'Cinzel',serif;font-size:0.8rem;color:var(--text-muted);margin-top:0.2rem">${race?.name||''} ${cls?.name||''} · Level ${c.level} · ${bg?.name||'No Background'}${c.player ? ' · ' + esc(c.player) : ''}</div>
+      <div style="display:flex;gap:1rem;align-items:center">
+        <!-- Portrait -->
+        <div style="position:relative;flex-shrink:0">
+          <div id="portrait-wrap-${c.id}" style="width:72px;height:72px;border-radius:50%;border:2px solid var(--gold);overflow:hidden;background:var(--parchment-dark);display:flex;align-items:center;justify-content:center;cursor:pointer" onclick="document.getElementById('portrait-upload-${c.id}').click()" title="Click to upload portrait">
+            ${c.portrait
+              ? `<img src="${c.portrait}" style="width:100%;height:100%;object-fit:cover">`
+              : `<span style="font-size:2rem;opacity:0.4">🧙</span>`}
+          </div>
+          <input type="file" id="portrait-upload-${c.id}" accept="image/*" style="display:none" onchange="uploadPortrait('${c.id}', this)">
+          <div style="font-size:0.55rem;font-family:'Cinzel',serif;color:var(--text-muted);text-align:center;margin-top:0.2rem;opacity:0.7">click to change</div>
+        </div>
+        <div>
+          <div style="font-family:'Cinzel Decorative',serif;font-size:1.4rem;color:var(--text-main)">${esc(c.name) || 'Unnamed Hero'}</div>
+          <div style="font-family:'Cinzel',serif;font-size:0.8rem;color:var(--text-muted);margin-top:0.2rem">${race?.name||''} ${cls?.name||''} · Level ${c.level} · ${bg?.name||'No Background'}${c.player ? ' · ' + esc(c.player) : ''}</div>
+        </div>
       </div>
       <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
         <button class="btn-secondary btn-sm" onclick="doShortRest('${c.id}')">☕ Short Rest</button>
@@ -3522,18 +3598,20 @@ function loadMapImage(evt) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    // Ensure there's an active map to save into
-    let active = state.maps.find(m => m.id === state.activeMapId);
-    if (!active) {
-      active = { id: 'map_' + Date.now(), name: 'Map 1', img: null, tokens: [] };
-      state.maps.push(active);
-      state.activeMapId = active.id;
-    }
-    active.img = e.target.result;
-    state.mapImg = e.target.result;
-    const img = new Image();
-    img.onload = () => { mapImage = img; redrawMap(); save(); renderMapTabs(); };
-    img.src = e.target.result;
+    // Compress map to max 1200px wide at 0.85 quality — keeps it sharp but Firebase-safe
+    compressImage(e.target.result, 1200, 0.85, compressed => {
+      let active = state.maps.find(m => m.id === state.activeMapId);
+      if (!active) {
+        active = { id: 'map_' + Date.now(), name: 'Map 1', img: null, tokens: [] };
+        state.maps.push(active);
+        state.activeMapId = active.id;
+      }
+      active.img = compressed;
+      state.mapImg = compressed;
+      const img = new Image();
+      img.onload = () => { mapImage = img; redrawMap(); save(); renderMapTabs(); };
+      img.src = compressed;
+    });
   };
   reader.readAsDataURL(file);
 }
@@ -3625,27 +3703,41 @@ function renameActiveMap(name) {
   if (m && name.trim()) { m.name = name.trim(); save(); renderMapTabs(); }
 }
 
+function compressImage(dataUrl, maxSize, quality, callback) {
+  const canvas = document.createElement('canvas');
+  const img = new Image();
+  img.onload = () => {
+    // Scale down if larger than maxSize px on longest side
+    let w = img.width, h = img.height;
+    if (w > maxSize || h > maxSize) {
+      if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
+      else { w = Math.round(w * maxSize / h); h = maxSize; }
+    }
+    canvas.width = w; canvas.height = h;
+    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+    callback(canvas.toDataURL('image/jpeg', quality));
+  };
+  img.src = dataUrl;
+}
+
 function loadTokenImage(evt) {
   const file = evt.target.files[0];
   if (!file) return;
-  const name = file.name.replace(/\.[^.]+$/, ''); // strip extension for default name
+  const name = file.name.replace(/\.[^.]+$/, '');
   const reader = new FileReader();
   reader.onload = e => {
-    const img = e.target.result;
-    pendingTokenImg = img;
-
-    // Save to library if not already present (match by data URI)
-    if (!state.tokenLibrary.find(l => l.img === img)) {
-      state.tokenLibrary.push({ id: 'lib_' + Date.now(), name, img });
-      save();
-    }
-
-    showTokenImgPreview(img);
-    renderTokenLibrary();
-
-    // Pre-fill name from filename if field is empty
-    const nameInput = document.getElementById('new-token-name');
-    if (nameInput && !nameInput.value) nameInput.value = name;
+    // Compress to max 128x128px at 0.7 quality — token thumbnails don't need more
+    compressImage(e.target.result, 128, 0.7, img => {
+      pendingTokenImg = img;
+      if (!state.tokenLibrary.find(l => l.name === name)) {
+        state.tokenLibrary.push({ id: 'lib_' + Date.now(), name, img });
+        save();
+      }
+      showTokenImgPreview(img);
+      renderTokenLibrary();
+      const nameInput = document.getElementById('new-token-name');
+      if (nameInput && !nameInput.value) nameInput.value = name;
+    });
   };
   reader.readAsDataURL(file);
 }
@@ -3741,12 +3833,14 @@ function addToken() {
 function toggleGrid() {
   state.showGrid = document.getElementById('grid-toggle').checked;
   redrawMap();
+  save();
 }
 
 function redrawMap() {
   if (!canvas || !ctx) return;
   const gs = +document.getElementById('grid-size')?.value || 50;
-  state.gridSize = gs;
+  if (gs !== state.gridSize) { state.gridSize = gs; save(); }
+  else { state.gridSize = gs; }
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   // Background
