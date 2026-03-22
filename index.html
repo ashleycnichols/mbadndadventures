@@ -1860,7 +1860,7 @@ function renderPartyPanel() {
       <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.6rem">HP: <strong style="color:${hpColor}">${ch.currentHp}</strong> / ${ch.maxHp}${ch.tempHp>0 ? ' <span style="color:#4a7fb5">+'+ch.tempHp+' temp</span>' : ''}</div>
       <!-- Quick stats -->
       <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.5rem">
-        ${[['AC','—'],['Init',(initMod>=0?'+':'')+initMod],['Perc.',passivePerc],['Prof.','+'+profBonus],cls?.spellcaster?['DC',spellDC]:null].filter(Boolean).map(([l,v])=>`<div style="text-align:center;background:var(--parchment);border:1px solid var(--border);border-radius:2px;padding:0.2rem 0.4rem;min-width:36px"><div style="font-size:0.85rem;font-family:'Cinzel',serif;color:var(--gold)">${v}</div><div style="font-size:0.6rem;color:var(--text-muted)">${l}</div></div>`).join('')}
+        ${[['AC', calcAC(ch)],['Init',(initMod>=0?'+':'')+initMod],['Perc.',passivePerc],['Prof.','+'+profBonus],cls?.spellcaster?['DC',spellDC]:null].filter(Boolean).map(([l,v])=>`<div style="text-align:center;background:var(--parchment);border:1px solid var(--border);border-radius:2px;padding:0.2rem 0.4rem;min-width:36px"><div style="font-size:0.85rem;font-family:'Cinzel',serif;color:var(--gold)">${v}</div><div style="font-size:0.6rem;color:var(--text-muted)">${l}</div></div>`).join('')}
       </div>
       ${slotSummary ? `<div style="display:flex;gap:0.3rem;flex-wrap:wrap;margin-bottom:0.4rem">${slotSummary}</div>` : ''}
       ${conditionBadges ? `<div style="display:flex;gap:0.25rem;flex-wrap:wrap">${conditionBadges}</div>` : ''}
@@ -2001,6 +2001,23 @@ function deleteCharacter(id) {
 }
 
 function getRace(id) { return RACES.find(r => r.id === id)?.name || id || '?'; }
+
+function calcAC(ch) {
+  if (!ch.stats) return 10;
+  const dexMod = Math.floor(((ch.stats.dex || 10) - 10) / 2);
+  const conMod = Math.floor(((ch.stats.con || 10) - 10) / 2);
+  const wisMod = Math.floor(((ch.stats.wis || 10) - 10) / 2);
+  // Tortle: natural armor AC 17 flat
+  if (ch.race === 'tortle') return 17;
+  // Barbarian: 10 + DEX + CON (unarmored defense)
+  if (ch.class === 'barbarian') return 10 + dexMod + conMod;
+  // Monk: 10 + DEX + WIS (unarmored defense)
+  if (ch.class === 'monk') return 10 + dexMod + wisMod;
+  // Fighter, Paladin, Warforged tend toward heavy armor — assume chain mail (AC 16) at low levels
+  if (['fighter','paladin'].includes(ch.class)) return Math.max(16, 10 + dexMod);
+  // Everyone else: unarmored 10 + DEX (players can note real AC in their notes)
+  return 10 + dexMod;
+}
 function getClass(id) { return CLASSES.find(c => c.id === id)?.name || id || '?'; }
 
 // ============================================================
@@ -2672,6 +2689,7 @@ function renderMySheet() {
     <!-- QUICK STATS BAR -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:0.5rem;margin-bottom:1rem">
       ${[
+        ['AC', calcAC(c)],
         ['Proficiency','+'+profBonus],
         ['Initiative',(initMod>=0?'+':'')+initMod],
         ['Passive Perc.',passivePerc],
