@@ -924,6 +924,16 @@
                   <option value="">— none —</option>
                 </select>
               </div>
+              <div class="input-group" style="margin:0.5rem 0">
+                <label class="form-label">Size</label>
+                <select class="parchment-input" id="new-token-size">
+                  <option value="1">Small / Medium (1×1)</option>
+                  <option value="2">Large (2×2)</option>
+                  <option value="3">Huge (3×3)</option>
+                  <option value="4">Gargantuan (4×4)</option>
+                </select>
+              </div>
+              <button class="control-btn" onclick="generatePlayerTokens()" style="background:rgba(45,106,45,0.15);border-color:var(--green-health);color:var(--green-health);margin-bottom:0.5rem">⚡ Auto-Generate Player Tokens</button>
               <button class="control-btn" onclick="addToken()">➕ Place Token on Map</button>
             </div>
           </div>
@@ -4047,10 +4057,51 @@ function renderTokenLibrary() {
   });
 }
 
+function generatePlayerTokens() {
+  const active = state.maps.find(m => m.id === state.activeMapId);
+  if (!active) { alert('No active map — upload a map first.'); return; }
+
+  let added = 0;
+  state.characters.forEach(ch => {
+    // Skip if already has a token on this map
+    if (mapState.tokens.some(t => t.charId === ch.id)) return;
+    // Use portrait if available, otherwise no image
+    const img = ch.portrait || null;
+    // Spread tokens out in a row along the top of the map
+    const gs = state.gridSize;
+    const col = added;
+    const tok = {
+      id: 'tok_' + Date.now() + '_' + ch.id,
+      name: ch.name,
+      type: 'player',
+      charId: ch.id,
+      size: 1,
+      x: gs * col + gs / 2 + gs,
+      y: gs * 1.5,
+      img,
+      hidden: false,
+    };
+    mapState.tokens.push(tok);
+    added++;
+  });
+
+  if (added === 0) {
+    alert('All player characters already have tokens on this map.');
+    return;
+  }
+
+  active.tokens = mapState.tokens;
+  _suppressRemoteUntil = Date.now() + 3000;
+  save();
+  redrawMap();
+  renderTokenList();
+}
+
 function addToken() {
   const name = document.getElementById('new-token-name').value.trim() || 'Token';
   const type = document.getElementById('new-token-type').value;
   const charId = document.getElementById('new-token-char').value;
+  const size = +document.getElementById('new-token-size').value || 1;
 
   // Place at canvas centre so it doesn't land under the cursor
   const cx = canvas ? Math.round(canvas.width / 2) : 200;
@@ -4058,7 +4109,7 @@ function addToken() {
 
   const t = {
     id: 'tok_' + Date.now(),
-    name, type, charId,
+    name, type, charId, size,
     x: cx, y: cy,
     img: pendingTokenImg || null,
     hidden: false,
@@ -4072,6 +4123,7 @@ function addToken() {
   if (activeMap) activeMap.tokens = mapState.tokens;
   pendingTokenImg = null;
   document.getElementById('new-token-name').value = '';
+  document.getElementById('new-token-size').value = '1';
   document.getElementById('token-img-input').value = '';
   hideTokenImgPreview();
   document.querySelectorAll('.lib-token-btn').forEach(b => b.style.outline = 'none');
@@ -4128,7 +4180,9 @@ function redrawMap() {
 }
 
 function drawToken(t, gs) {
-  const r = gs * 0.42;
+  const sz = t.size || 1;
+  // For multi-cell tokens the radius spans (sz * gs / 2) minus a small margin
+  const r = sz === 1 ? gs * 0.42 : (sz * gs) / 2 - gs * 0.08;
   const cx = t.x, cy = t.y;
 
   if (t.hidden) {
@@ -4198,7 +4252,8 @@ function getTokenAt(x, y) {
   for (let i = mapState.tokens.length - 1; i >= 0; i--) {
     const t = mapState.tokens[i];
     if (t.hidden && !state.currentUser.isDM) continue;
-    const r = gs * 0.42;
+    const sz = t.size || 1;
+    const r = sz === 1 ? gs * 0.42 : (sz * gs) / 2 - gs * 0.08;
     const dx = x - t.x, dy = y - t.y;
     if (dx*dx + dy*dy <= r*r) return t;
   }
@@ -4238,8 +4293,12 @@ function onMapMouseMove(e) {
   const x = e.clientX - rect.left, y = e.clientY - rect.top;
   if (mapState.dragging) {
     const gs = state.gridSize;
-    mapState.dragging.x = Math.round((x - mapState.offsetX) / gs) * gs + gs/2;
-    mapState.dragging.y = Math.round((y - mapState.offsetY) / gs) * gs + gs/2;
+    const sz = mapState.dragging.size || 1;
+    // Snap to nearest cell corner, then offset by half the token's footprint
+    const snapX = Math.floor((x - mapState.offsetX) / gs) * gs + (sz * gs) / 2;
+    const snapY = Math.floor((y - mapState.offsetY) / gs) * gs + (sz * gs) / 2;
+    mapState.dragging.x = snapX;
+    mapState.dragging.y = snapY;
     redrawMap();
   }
 }
@@ -4298,7 +4357,7 @@ function renderTokenList() {
       <div class="token-thumb">${t.img ? `<img src="${t.img}">` : t.name.charAt(0)}</div>
       <div class="token-info">
         <div class="token-name">${esc(t.name)}</div>
-        <div class="token-type">${t.type}${t.hidden ? ' · hidden' : ''}</div>
+        <div class="token-type">${t.type}${t.size > 1 ? ' · ' + ['','','Large','Huge','Gargantuan'][t.size] : ''}${t.hidden ? ' · hidden' : ''}</div>
       </div>
       ${isDM ? `<button class="token-toggle" onclick="toggleTokenVisibility('${t.id}')">${t.hidden ? '👁' : '🚫'}</button>
         <button class="token-toggle" style="color:var(--blood)" onclick="removeToken('${t.id}')">✕</button>` : ''}
