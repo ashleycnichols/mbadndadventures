@@ -1561,6 +1561,7 @@ function _rerender() {
   }
   renderTokenList();
   renderTokenLibrary();
+  if (!state.currentUser?.isDM) {
     const mapPanel = document.getElementById('panel-map');
     if (mapPanel && mapPanel.classList.contains('active')) renderCombatSidebar();
   }
