@@ -1518,6 +1518,12 @@ function applyData(d) {
   state.gridSize = world.gridSize || 50;
   state.showGrid = world.showGrid !== false;
   state.tokenLibrary = world.tokenLibrary || [];
+  const gsInput = document.getElementById('grid-size');
+  if (gsInput) gsInput.value = state.gridSize;
+  const gtDM = document.getElementById('grid-toggle');
+  if (gtDM) gtDM.checked = state.showGrid;
+  const gtPlayer = document.getElementById('grid-toggle-player');
+  if (gtPlayer) gtPlayer.checked = state.showGrid;
   if (world.maps && world.maps.length) {
     state.maps = world.maps;
     state.activeMapId = world.activeMapId || state.maps[0]?.id;
@@ -1554,7 +1560,7 @@ function _rerender() {
     redrawMap();
   }
   renderTokenList();
-  if (!state.currentUser?.isDM) {
+  renderTokenLibrary();
     const mapPanel = document.getElementById('panel-map');
     if (mapPanel && mapPanel.classList.contains('active')) renderCombatSidebar();
   }
@@ -1591,6 +1597,12 @@ function onRemoteWorld(world) {
   state.gridSize = world.gridSize || 50;
   state.showGrid = world.showGrid !== false;
   state.tokenLibrary = world.tokenLibrary || [];
+  const gsInput = document.getElementById('grid-size');
+  if (gsInput) gsInput.value = state.gridSize;
+  const gtDM = document.getElementById('grid-toggle');
+  if (gtDM) gtDM.checked = state.showGrid;
+  const gtPlayer = document.getElementById('grid-toggle-player');
+  if (gtPlayer) gtPlayer.checked = state.showGrid;
   if (world.maps && world.maps.length) {
     state.maps = world.maps;
     state.activeMapId = world.activeMapId || state.maps[0]?.id;
@@ -2766,8 +2778,6 @@ function renderMySheet() {
   const container = document.getElementById('sheet-content');
   if (!container) { console.error('renderMySheet: sheet-content element not found'); return; }
   if (!state.currentUser) { container.innerHTML = '<div class="empty-state"><p>Not logged in.</p></div>'; return; }
-
-  console.log('renderMySheet: user=', state.currentUser.name, 'isDM=', state.currentUser.isDM, 'chars=', state.characters.map(ch => ch.player + '/' + ch.name));
 
   const c = state.currentUser.isDM
     ? state.characters[0]
@@ -4073,12 +4083,14 @@ function addToken() {
 function toggleGrid() {
   state.showGrid = document.getElementById('grid-toggle').checked;
   redrawMap();
+  save();
 }
 
 function redrawMap() {
   if (!canvas || !ctx) return;
   const gs = +document.getElementById('grid-size')?.value || 50;
-  state.gridSize = gs;
+  if (gs !== state.gridSize) { state.gridSize = gs; save(); }
+  else { state.gridSize = gs; }
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   // Background
@@ -4295,11 +4307,20 @@ function renderTokenList() {
 
 function toggleTokenVisibility(id) {
   const t = mapState.tokens.find(x => x.id === id);
-  if (t) { t.hidden = !t.hidden; save(); redrawMap(); }
+  if (t) {
+    t.hidden = !t.hidden;
+    const activeMap = state.maps.find(m => m.id === state.activeMapId);
+    if (activeMap) activeMap.tokens = mapState.tokens;
+    _suppressRemoteUntil = Date.now() + 3000;
+    save(); redrawMap();
+  }
 }
 
 function removeToken(id) {
   mapState.tokens = mapState.tokens.filter(x => x.id !== id);
+  const activeMap = state.maps.find(m => m.id === state.activeMapId);
+  if (activeMap) activeMap.tokens = mapState.tokens;
+  _suppressRemoteUntil = Date.now() + 3000;
   save(); redrawMap();
 }
 
