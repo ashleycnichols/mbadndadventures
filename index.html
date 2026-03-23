@@ -4364,12 +4364,13 @@ function hideTokenPopup() {
 function renderTokenList() {
   const list = document.getElementById('token-list');
   if (!list) return;
-  if (!mapState.tokens.length) {
+  const isDM = state.currentUser?.isDM;
+  const visible = isDM ? mapState.tokens : mapState.tokens.filter(t => !t.hidden);
+  if (!visible.length) {
     list.innerHTML = '<div style="font-size:0.8rem;color:var(--text-muted);font-style:italic;padding:0.5rem">No tokens placed yet.</div>';
     return;
   }
-  list.innerHTML = mapState.tokens.map(t => {
-    const isDM = state.currentUser?.isDM;
+  list.innerHTML = visible.map(t => {
     return `<div class="token-item ${t.hidden ? 'hidden-token' : ''}">
       <div class="token-thumb">${t.img ? `<img src="${t.img}">` : t.name.charAt(0)}</div>
       <div class="token-info">
