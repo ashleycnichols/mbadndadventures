@@ -3821,7 +3821,7 @@ function addNewMap() {
 
 function switchMap(id) {
   if (id === state.activeMapId) return;
-  // Save current tokens to current map
+  // Save current tokens to current map before switching
   if (state.activeMapId) {
     const cur = state.maps.find(m => m.id === state.activeMapId);
     if (cur) cur.tokens = mapState.tokens;
@@ -3830,6 +3830,7 @@ function switchMap(id) {
   const next = state.maps.find(m => m.id === id);
   mapState.tokens = next ? [...(next.tokens || [])] : [];
   state.mapImg = next?.img || null;
+  mapState.dragging = null;
 
   if (next?.img) {
     const img = new Image();
@@ -3839,8 +3840,14 @@ function switchMap(id) {
     mapImage = null;
     redrawMap();
   }
-  _suppressRemoteUntil = Date.now() + 3000;
-  save();
+  // Suppress for 8s and flush immediately — activeMapId must reach Firebase before world listener echoes back
+  _suppressRemoteUntil = Date.now() + 8000;
+  clearTimeout(_saveDebounce);
+  localStorage.setItem('chronicler_v2', JSON.stringify(buildSaveData()));
+  if (state.syncEnabled && state.campaignId && state.currentUser?.isDM) {
+    window.fbSaveWorld && window.fbSaveWorld(state.campaignId, buildWorldData())
+      .then(() => { _suppressRemoteUntil = Date.now() + 1000; });
+  }
   renderMapTabs();
   renderTokenList();
 }
@@ -4117,8 +4124,12 @@ function canMoveToken(t) {
 }
 
 function onMapMouseDown(e) {
+  // Only respond to clicks directly on the canvas
+  if (e.target !== canvas) return;
   const rect = canvas.getBoundingClientRect();
   const x = e.clientX - rect.left, y = e.clientY - rect.top;
+  // Ignore if outside canvas bounds
+  if (x < 0 || y < 0 || x > canvas.width || y > canvas.height) return;
   const t = getTokenAt(x, y);
   if (t && canMoveToken(t)) {
     mapState.dragging = t;
