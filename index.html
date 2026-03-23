@@ -2254,8 +2254,7 @@ function uploadPortrait(charId, input) {
           active.tokens = mapState.tokens;
         } else {
           const tok = { id: 'tok_' + Date.now(), name: ch.name, type: 'player', charId,
-            x: canvas ? Math.round(canvas.width/2) : 200,
-            y: canvas ? Math.round(canvas.height/2) : 200,
+            x: 0.5, y: 0.5,
             img: portrait, hidden: false };
           mapState.tokens.push(tok);
           active.tokens = mapState.tokens;
@@ -3789,6 +3788,22 @@ function renderCombatSidebar() {
   container.innerHTML = html;
 }
 
+// Convert fractional token position to canvas pixels
+function tokToCanvas(frac, dim) { return frac * dim; }
+// Convert canvas pixels to fractional position
+function canvasToTok(px, dim) { return dim > 0 ? px / dim : 0; }
+// Migrate old pixel coords to fractions (called when loading tokens)
+function migrateTokenCoords(tokens) {
+  if (!canvas || !tokens) return tokens;
+  return tokens.map(t => {
+    // Heuristic: if x or y > 1 it's still in pixel space
+    if (t.x > 1 || t.y > 1) {
+      return { ...t, x: canvasToTok(t.x, canvas.width), y: canvasToTok(t.y, canvas.height) };
+    }
+    return t;
+  });
+}
+
 function initMap() {
   canvas = document.getElementById('map-canvas');
   ctx = canvas.getContext('2d');
@@ -3797,6 +3812,8 @@ function initMap() {
   const resizeCanvas = () => {
     canvas.width = viewport.clientWidth;
     canvas.height = viewport.clientHeight;
+    // Migrate any old pixel-coord tokens to fractional on first resize
+    mapState.tokens = migrateTokenCoords(mapState.tokens);
     redrawMap();
   };
   new ResizeObserver(resizeCanvas).observe(viewport);
@@ -4068,16 +4085,15 @@ function generatePlayerTokens() {
     // Use portrait if available, otherwise no image
     const img = ch.portrait || null;
     // Spread tokens out in a row along the top of the map
-    const gs = state.gridSize;
-    const col = added;
+    // Space tokens evenly along the top as fractions
     const tok = {
       id: 'tok_' + Date.now() + '_' + ch.id,
       name: ch.name,
       type: 'player',
       charId: ch.id,
       size: 1,
-      x: gs * col + gs / 2 + gs,
-      y: gs * 1.5,
+      x: 0.05 + (added * 0.1),
+      y: 0.05,
       img,
       hidden: false,
     };
@@ -4103,14 +4119,11 @@ function addToken() {
   const charId = document.getElementById('new-token-char').value;
   const size = +document.getElementById('new-token-size').value || 1;
 
-  // Place at canvas centre so it doesn't land under the cursor
-  const cx = canvas ? Math.round(canvas.width / 2) : 200;
-  const cy = canvas ? Math.round(canvas.height / 2) : 200;
-
+  // Place at canvas centre as fraction (0.5, 0.5)
   const t = {
     id: 'tok_' + Date.now(),
     name, type, charId, size,
-    x: cx, y: cy,
+    x: 0.5, y: 0.5,
     img: pendingTokenImg || null,
     hidden: false,
   };
@@ -4181,9 +4194,10 @@ function redrawMap() {
 
 function drawToken(t, gs) {
   const sz = t.size || 1;
-  // For multi-cell tokens the radius spans (sz * gs / 2) minus a small margin
   const r = sz === 1 ? gs * 0.42 : (sz * gs) / 2 - gs * 0.08;
-  const cx = t.x, cy = t.y;
+  // Convert fractional position to canvas pixels for drawing
+  const cx = tokToCanvas(t.x, canvas.width);
+  const cy = tokToCanvas(t.y, canvas.height);
 
   if (t.hidden) {
     ctx.globalAlpha = 0.45;
@@ -4248,13 +4262,15 @@ const tokenImgCache = {};
 
 function getTokenAt(x, y) {
   const gs = state.gridSize;
-  // Reverse so topmost drawn token is picked first
   for (let i = mapState.tokens.length - 1; i >= 0; i--) {
     const t = mapState.tokens[i];
     if (t.hidden && !state.currentUser.isDM) continue;
     const sz = t.size || 1;
     const r = sz === 1 ? gs * 0.42 : (sz * gs) / 2 - gs * 0.08;
-    const dx = x - t.x, dy = y - t.y;
+    // Compare in pixel space
+    const tx = tokToCanvas(t.x, canvas.width);
+    const ty = tokToCanvas(t.y, canvas.height);
+    const dx = x - tx, dy = y - ty;
     if (dx*dx + dy*dy <= r*r) return t;
   }
   return null;
@@ -4279,8 +4295,9 @@ function onMapMouseDown(e) {
   const t = getTokenAt(x, y);
   if (t && canMoveToken(t)) {
     mapState.dragging = t;
-    mapState.offsetX = x - t.x;
-    mapState.offsetY = y - t.y;
+    // Store offset in pixel space
+    mapState.offsetX = x - tokToCanvas(t.x, canvas.width);
+    mapState.offsetY = y - tokToCanvas(t.y, canvas.height);
     showTokenPopup(t, x, y);
   } else {
     hideTokenPopup();
@@ -4294,11 +4311,11 @@ function onMapMouseMove(e) {
   if (mapState.dragging) {
     const gs = state.gridSize;
     const sz = mapState.dragging.size || 1;
-    // Snap to nearest cell corner, then offset by half the token's footprint
+    // Snap in pixel space, then store as fractions
     const snapX = Math.floor((x - mapState.offsetX) / gs) * gs + (sz * gs) / 2;
     const snapY = Math.floor((y - mapState.offsetY) / gs) * gs + (sz * gs) / 2;
-    mapState.dragging.x = snapX;
-    mapState.dragging.y = snapY;
+    mapState.dragging.x = canvasToTok(snapX, canvas.width);
+    mapState.dragging.y = canvasToTok(snapY, canvas.height);
     redrawMap();
   }
 }
