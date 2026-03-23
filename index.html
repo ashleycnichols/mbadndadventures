@@ -7,7 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-  import { getDatabase, ref, set, onValue, off } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+  import { getDatabase, ref, set, get, onValue, off } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
   const HARDCODED_CONFIG = {
     apiKey: "AIzaSyAR57EkvBIBBZIFmnAxJaiNTd8rIPK5iGg",
@@ -76,6 +76,11 @@
     window.fbSaveMeta = function(joinCode, metaData) {
       return set(ref(db, 'meta/' + joinCode), metaData)
         .catch(e => console.warn('fbSaveMeta error:', e));
+    };
+
+    // Read a meta value once — used for DM password verification
+    window.fbFetchMeta = function(joinCode) {
+      return get(ref(db, 'meta/' + joinCode)).then(snap => snap.exists() ? snap.val() : null);
     };
 
     window.fbSaveCharacter = function(campaignId, charId, charData) {
@@ -1677,16 +1682,30 @@ function enterApp() {
       _launchApp();
     };
     if (btn) btn.disabled = true;
-    // Try to fetch authoritative pass from Firebase
-    if (window._fbReady && window.fbFetchMeta) {
+    // Fetch authoritative pass from Firebase, waiting for FB to be ready if needed
+    const doFetch = () => {
       window.fbFetchMeta(window._hardcodedCampaignId + '_auth').then(meta => {
         checkAndLogin(meta?.dmPass || getDMPass());
       }).catch(() => {
         checkAndLogin(getDMPass());
       });
+    };
+    if (window._fbReady && window.fbFetchMeta) {
+      doFetch();
     } else {
-      if (btn) btn.disabled = false;
-      checkAndLogin(getDMPass());
+      // Firebase not ready yet (common on mobile cold load) — wait up to 5s
+      let waited = 0;
+      const poll = setInterval(() => {
+        waited += 100;
+        if (window._fbReady && window.fbFetchMeta) {
+          clearInterval(poll);
+          doFetch();
+        } else if (waited >= 5000) {
+          clearInterval(poll);
+          if (btn) btn.disabled = false;
+          checkAndLogin(getDMPass()); // fall back to localStorage
+        }
+      }, 100);
     }
     return;
   } else {
@@ -3920,21 +3939,30 @@ function addToken() {
   const type = document.getElementById('new-token-type').value;
   const charId = document.getElementById('new-token-char').value;
 
+  // Place at canvas centre so it doesn't land under the cursor
+  const cx = canvas ? Math.round(canvas.width / 2) : 200;
+  const cy = canvas ? Math.round(canvas.height / 2) : 200;
+
   const t = {
     id: 'tok_' + Date.now(),
     name, type, charId,
-    x: 80, y: 80,
+    x: cx, y: cy,
     img: pendingTokenImg || null,
     hidden: false,
   };
 
   mapState.tokens.push(t);
+  // Ensure not dragging the new token
+  mapState.dragging = null;
+  // Sync tokens back to active map immediately before save
+  const activeMap = state.maps.find(m => m.id === state.activeMapId);
+  if (activeMap) activeMap.tokens = mapState.tokens;
   pendingTokenImg = null;
   document.getElementById('new-token-name').value = '';
   document.getElementById('token-img-input').value = '';
   hideTokenImgPreview();
-  // Clear library selection highlight
   document.querySelectorAll('.lib-token-btn').forEach(b => b.style.outline = 'none');
+  _suppressRemoteUntil = Date.now() + 3000;
   save();
   redrawMap();
   renderTokenList();
@@ -4098,7 +4126,10 @@ function onMapMouseMove(e) {
 }
 
 function onMapMouseUp() {
-  if (mapState.dragging) { save(); }
+  if (mapState.dragging) {
+    _suppressRemoteUntil = Date.now() + 3000;
+    save();
+  }
   mapState.dragging = null;
 }
 
