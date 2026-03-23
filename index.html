@@ -3743,18 +3743,33 @@ function loadMapImage(evt) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    // Ensure there's an active map to save into
-    let active = state.maps.find(m => m.id === state.activeMapId);
-    if (!active) {
-      active = { id: 'map_' + Date.now(), name: 'Map 1', img: null, tokens: [] };
-      state.maps.push(active);
-      state.activeMapId = active.id;
-    }
-    active.img = e.target.result;
-    state.mapImg = e.target.result;
-    const img = new Image();
-    img.onload = () => { mapImage = img; redrawMap(); save(); renderMapTabs(); };
-    img.src = e.target.result;
+    // Compress map to max 1200px wide at 0.85 quality — keeps it sharp but Firebase-safe
+    compressImage(e.target.result, 1200, 0.85, compressed => {
+      let active = state.maps.find(m => m.id === state.activeMapId);
+      if (!active) {
+        active = { id: 'map_' + Date.now(), name: 'Map 1', img: null, tokens: [] };
+        state.maps.push(active);
+        state.activeMapId = active.id;
+      }
+      active.img = compressed;
+      state.mapImg = compressed;
+      const img = new Image();
+      img.onload = () => {
+        mapImage = img;
+        redrawMap();
+        renderMapTabs();
+        // Suppress remote world updates for 10s — map uploads are large and slow
+        _suppressRemoteUntil = Date.now() + 10000;
+        // Flush immediately, no debounce — too important to risk a race condition
+        clearTimeout(_saveDebounce);
+        localStorage.setItem('chronicler_v2', JSON.stringify(buildSaveData()));
+        if (state.syncEnabled && state.campaignId && state.currentUser?.isDM) {
+          window.fbSaveWorld && window.fbSaveWorld(state.campaignId, buildWorldData())
+            .then(() => { _suppressRemoteUntil = Date.now() + 1000; });
+        }
+      };
+      img.src = compressed;
+    });
   };
   reader.readAsDataURL(file);
 }
@@ -3824,6 +3839,7 @@ function switchMap(id) {
     mapImage = null;
     redrawMap();
   }
+  _suppressRemoteUntil = Date.now() + 3000;
   save();
   renderMapTabs();
   renderTokenList();
@@ -3837,6 +3853,7 @@ function deleteMap(id) {
     state.activeMapId = state.maps[0].id;
     switchMap(state.activeMapId);
   }
+  _suppressRemoteUntil = Date.now() + 3000;
   save();
   renderMapTabs();
 }
