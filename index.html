@@ -1993,6 +1993,15 @@ function renderPartyPanel() {
     const passivePerc = 10 + getMod('wis');
     const spellMod = cls?.statHp ? getMod(cls.statHp) : 0;
     const spellDC = 8 + profBonus + spellMod;
+    const chAC = (() => {
+      const dex = getMod('dex'), con = getMod('con'), wis = getMod('wis'), cid = ch.class;
+      if (cid === 'barbarian') return 10 + dex + con;
+      if (cid === 'monk')      return 10 + dex + wis;
+      if (cid === 'fighter' || cid === 'paladin') return 16;
+      if (cid === 'cleric' || cid === 'ranger')   return 14 + Math.min(dex, 2);
+      if (['bard','rogue','warlock','artificer','druid'].includes(cid)) return 11 + dex;
+      return 10 + dex;
+    })();
 
     // Spell slots summary
     const lvlIdx = Math.min(ch.level - 1, 19);
@@ -2026,7 +2035,7 @@ function renderPartyPanel() {
       <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.6rem">HP: <strong style="color:${hpColor}">${ch.currentHp}</strong> / ${ch.maxHp}${ch.tempHp>0 ? ' <span style="color:#4a7fb5">+'+ch.tempHp+' temp</span>' : ''}</div>
       <!-- Quick stats -->
       <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.5rem">
-        ${[['AC','—'],['Init',(initMod>=0?'+':'')+initMod],['Perc.',passivePerc],['Prof.','+'+profBonus],cls?.spellcaster?['DC',spellDC]:null].filter(Boolean).map(([l,v])=>`<div style="text-align:center;background:var(--parchment);border:1px solid var(--border);border-radius:2px;padding:0.2rem 0.4rem;min-width:36px"><div style="font-size:0.85rem;font-family:'Cinzel',serif;color:var(--gold)">${v}</div><div style="font-size:0.6rem;color:var(--text-muted)">${l}</div></div>`).join('')}
+        ${[['AC',chAC],['Init',(initMod>=0?'+':'')+initMod],['Perc.',passivePerc],['Prof.','+'+profBonus],cls?.spellcaster?['DC',spellDC]:null].filter(Boolean).map(([l,v])=>`<div style="text-align:center;background:var(--parchment);border:1px solid var(--border);border-radius:2px;padding:0.2rem 0.4rem;min-width:36px"><div style="font-size:0.85rem;font-family:'Cinzel',serif;color:var(--gold)">${v}</div><div style="font-size:0.6rem;color:var(--text-muted)">${l}</div></div>`).join('')}
       </div>
       ${slotSummary ? `<div style="display:flex;gap:0.3rem;flex-wrap:wrap;margin-bottom:0.4rem">${slotSummary}</div>` : ''}
       ${conditionBadges ? `<div style="display:flex;gap:0.25rem;flex-wrap:wrap">${conditionBadges}</div>` : ''}
@@ -2725,6 +2734,25 @@ function renderMySheet() {
   const spellAtk = profBonus + spellMod;
   const initMod = getMod('dex');
   const passivePerc = 10 + getMod('wis');
+
+  // AC: based on class starting armor + relevant DEX/CON/WIS mods
+  const calcAC = () => {
+    const dex = getMod('dex');
+    const con = getMod('con');
+    const wis = getMod('wis');
+    const classId = c.class;
+    if (classId === 'barbarian') return 10 + dex + con;       // Unarmored Defense
+    if (classId === 'monk')      return 10 + dex + wis;       // Unarmored Defense
+    if (classId === 'fighter')   return 16;                   // Chain mail (no DEX)
+    if (classId === 'paladin')   return 16;                   // Chain mail (no DEX)
+    if (classId === 'cleric')    return 14 + Math.min(dex,2); // Scale mail (max +2 DEX)
+    if (classId === 'ranger')    return 14 + Math.min(dex,2); // Scale mail (max +2 DEX)
+    if (classId === 'druid')     return 11 + dex;             // Leather
+    if (['bard','rogue','warlock','artificer'].includes(classId)) return 11 + dex; // Leather
+    return 10 + dex; // No armor: sorcerer, wizard, blood-hunter
+  };
+  const ac = calcAC();
+
   const hpPct = Math.max(0, Math.round(c.currentHp / c.maxHp * 100));
   const hpColor = hpPct > 60 ? 'var(--green-health)' : hpPct > 25 ? '#8b6914' : 'var(--blood)';
 
@@ -2769,6 +2797,7 @@ function renderMySheet() {
     <!-- QUICK STATS BAR -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:0.5rem;margin-bottom:1rem">
       ${[
+        ['AC', ac],
         ['Proficiency','+'+profBonus],
         ['Initiative',(initMod>=0?'+':'')+initMod],
         ['Passive Perc.',passivePerc],
