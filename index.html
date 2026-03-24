@@ -1639,12 +1639,6 @@ function onRemoteWorld(world) {
 function onRemoteTokenMove(moves) {
   if (!moves) return;
   let changed = false;
-  Object.values(moves).forEach(move => {
-    if (!move.mapId || move.mapId !== state.activeMapId) return;
-    const t = mapState.tokens.find(x => x.id === Object.keys(moves).find(k => moves[k] === move));
-    // find by iterating properly
-  });
-  // Simpler: match by scanning keys
   Object.entries(moves).forEach(([tokenId, move]) => {
     if (!move || move.mapId !== state.activeMapId) return;
     const t = mapState.tokens.find(x => x.id === tokenId);
@@ -1661,6 +1655,9 @@ function onRemoteTokenMove(moves) {
     renderTokenList();
   }
 }
+
+// Legacy handler kept for compatibility
+function onRemoteData(d) {
   if (d.characters) onRemoteChars(d.characters);
   if (d.world) onRemoteWorld(d.world);
 }
