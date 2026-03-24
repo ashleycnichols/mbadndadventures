@@ -52,17 +52,27 @@
         .catch(e => console.warn('fbSaveWorld:', e));
     };
 
+    // Write a single token's position — used by players moving their own token
+    window.fbSaveTokenPos = function(campaignId, mapId, tokenId, x, y) {
+      // Find the map index and update just that token in the world/maps array
+      // Simpler: write to a separate tokenMoves path the DM listener merges in
+      return set(ref(db, 'campaigns/' + campaignId + '/tokenMoves/' + tokenId), { mapId, x, y, _t: Date.now() })
+        .catch(e => console.warn('fbSaveTokenPos:', e));
+    };
+
     // Legacy full save — still used for bulk operations
     window.fbSave = function(campaignId, data) {
       return set(ref(db, 'campaigns/' + campaignId), data)
         .catch(e => console.warn('fbSave:', e));
     };
 
-    window.fbListen = function(campaignId, onChars, onWorld) {
+    window.fbListen = function(campaignId, onChars, onWorld, onTokenMove) {
       _charRef = ref(db, 'campaigns/' + campaignId + '/characters');
       _worldRef = ref(db, 'campaigns/' + campaignId + '/world');
+      const _moveRef = ref(db, 'campaigns/' + campaignId + '/tokenMoves');
       onValue(_charRef, snap => { onChars(snap.exists() ? snap.val() : {}); });
       onValue(_worldRef, snap => { onWorld(snap.exists() ? snap.val() : null); });
+      onValue(_moveRef, snap => { if (snap.exists() && onTokenMove) onTokenMove(snap.val()); });
     };
 
     window.fbStopListen = function() {
@@ -1625,8 +1635,32 @@ function onRemoteWorld(world) {
   _rerender();
 }
 
-// Legacy handler kept for compatibility
-function onRemoteData(d) {
+// Called when a player writes their token position
+function onRemoteTokenMove(moves) {
+  if (!moves) return;
+  let changed = false;
+  Object.values(moves).forEach(move => {
+    if (!move.mapId || move.mapId !== state.activeMapId) return;
+    const t = mapState.tokens.find(x => x.id === Object.keys(moves).find(k => moves[k] === move));
+    // find by iterating properly
+  });
+  // Simpler: match by scanning keys
+  Object.entries(moves).forEach(([tokenId, move]) => {
+    if (!move || move.mapId !== state.activeMapId) return;
+    const t = mapState.tokens.find(x => x.id === tokenId);
+    if (t && (t.x !== move.x || t.y !== move.y)) {
+      t.x = move.x;
+      t.y = move.y;
+      changed = true;
+    }
+  });
+  if (changed) {
+    const active = state.maps.find(m => m.id === state.activeMapId);
+    if (active) active.tokens = mapState.tokens;
+    redrawMap();
+    renderTokenList();
+  }
+}
   if (d.characters) onRemoteChars(d.characters);
   if (d.world) onRemoteWorld(d.world);
 }
@@ -1636,7 +1670,7 @@ function startSync(campaignId) {
   state.syncEnabled = true;
   localStorage.setItem('chronicler_campaign_id', campaignId);
   if (window.fbListen) {
-    window.fbListen(campaignId, onRemoteChars, onRemoteWorld);
+    window.fbListen(campaignId, onRemoteChars, onRemoteWorld, onRemoteTokenMove);
   }
   updateSyncStatus('connected');
 }
@@ -1831,7 +1865,7 @@ function _initAndSync(config, campaignId) {
   const doSync = () => {
     state.campaignId = campaignId;
     state.syncEnabled = true;
-    window.fbListen(campaignId, onRemoteChars, onRemoteWorld);
+    window.fbListen(campaignId, onRemoteChars, onRemoteWorld, onRemoteTokenMove);
     updateSyncStatus('connected');
   };
   if (window._fbReady) {
@@ -1882,7 +1916,7 @@ function _launchApp() {
 
     // Both DM and players: just listen — Firebase will push current state via onRemoteData
     state.syncEnabled = true;
-    window.fbListen(campaignId, onRemoteChars, onRemoteWorld);
+    window.fbListen(campaignId, onRemoteChars, onRemoteWorld, onRemoteTokenMove);
     updateSyncStatus('connected');
 
     // DM also writes meta
@@ -4322,8 +4356,21 @@ function onMapMouseMove(e) {
 
 function onMapMouseUp() {
   if (mapState.dragging) {
-    _suppressRemoteUntil = Date.now() + 3000;
-    save();
+    const t = mapState.dragging;
+    if (state.currentUser?.isDM) {
+      // DM writes full world
+      _suppressRemoteUntil = Date.now() + 3000;
+      save();
+    } else {
+      // Player writes just their token position to tokenMoves
+      if (window.fbSaveTokenPos && state.campaignId && state.activeMapId) {
+        window.fbSaveTokenPos(state.campaignId, state.activeMapId, t.id, t.x, t.y);
+      }
+      // Also update local map state
+      const active = state.maps.find(m => m.id === state.activeMapId);
+      if (active) active.tokens = mapState.tokens;
+      localStorage.setItem('chronicler_v2', JSON.stringify(buildSaveData()));
+    }
   }
   mapState.dragging = null;
 }
