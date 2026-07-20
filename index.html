@@ -1098,9 +1098,9 @@ const CLASSES = [
     weaponProf:'simple', statHp:'cha', weaponLimit:2,
     cantripsKnown:[2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4,4],
     spellsKnown:  [2,3,4,5,6,7,8,9,10,10,11,11,12,12,13,13,14,14,15,15],
-    spellSlots:[[1],[2],[2],[2],[2],[2],[2],[2],[2],[2],[3],[3],[3],[3],[3],[3],[4],[4],[4],[4]] },
+    spellSlots:[[1],[2],[0,2],[0,2],[0,0,2],[0,0,2],[0,0,0,2],[0,0,0,2],[0,0,0,0,2],[0,0,0,0,2],[0,0,0,0,3],[0,0,0,0,3],[0,0,0,0,3],[0,0,0,0,3],[0,0,0,0,3],[0,0,0,0,3],[0,0,0,0,4],[0,0,0,0,4],[0,0,0,0,4],[0,0,0,0,4]] },
   { id:'wizard', name:'Wizard', icon:'🧙', desc:'Arcane Recovery, Spellbook', hd:6, spellcaster:true,
-    weaponProf:'dagger,dart,quarterstaff,light-crossbow', statHp:'int', weaponLimit:2,
+    weaponProf:'dagger,dart,quarterstaff,light-crossbow', statHp:'int', weaponLimit:2, spellbookPerLevel:2,
     cantripsKnown:[3,3,3,4,4,4,4,4,4,5,5,5,5,5,5,5,5,5,5,5],
     spellSlots:[[2],[3],[4,2],[4,3],[4,3,2],[4,3,3],[4,3,3,1],[4,3,3,2],[4,3,3,3,1],[4,3,3,3,2],[4,3,3,3,2,1],[4,3,3,3,2,1,1],[4,3,3,3,2,1,1,1],[4,3,3,3,2,1,1,1,1],[4,3,3,3,2,1,1,1,1],[4,3,3,3,2,2,1,1,1],[4,3,3,3,3,2,1,1,1],[4,3,3,3,3,2,2,1,1],[4,3,3,3,3,2,2,2,1],[4,3,3,3,3,3,2,2,1]] },
   { id:'artificer', name:'Artificer', icon:'⚙️', desc:'Magical Tinkering, Infusions', hd:8, spellcaster:true,
@@ -1111,6 +1111,36 @@ const CLASSES = [
     weaponProf:'all', statHp:'str', weaponLimit:3,
     spellSlots:null },
 ];
+
+// ============================================================
+// SUBCLASSES
+// ============================================================
+const SUBCLASS_LEVEL = { barbarian:3, bard:3, cleric:1, druid:2, fighter:3, monk:3, paladin:3, ranger:3, rogue:3, sorcerer:1, warlock:1, wizard:2, artificer:3, 'blood-hunter':3 };
+const SUBCLASS_LABEL = { barbarian:'Primal Path', bard:'Bard College', cleric:'Divine Domain', druid:'Druid Circle', fighter:'Martial Archetype', monk:'Monastic Tradition', paladin:'Sacred Oath', ranger:'Ranger Archetype', rogue:'Roguish Archetype', sorcerer:'Sorcerous Origin', warlock:'Otherworldly Patron', wizard:'Arcane Tradition', artificer:'Artificer Specialty', 'blood-hunter':'Blood Hunter Order' };
+const SUBCLASSES = {
+  barbarian:['Path of the Berserker','Path of the Totem Warrior','Path of the Zealot','Path of Wild Magic'],
+  bard:['College of Lore','College of Valor','College of Glamour','College of Eloquence'],
+  cleric:['Life Domain','Light Domain','Trickery Domain','War Domain','Tempest Domain','Knowledge Domain'],
+  druid:['Circle of the Land','Circle of the Moon','Circle of Spores','Circle of Stars'],
+  fighter:['Champion','Battle Master','Eldritch Knight','Rune Knight'],
+  monk:['Way of the Open Hand','Way of Shadow','Way of the Four Elements','Way of Mercy'],
+  paladin:['Oath of Devotion','Oath of the Ancients','Oath of Vengeance','Oath of Conquest'],
+  ranger:['Hunter','Beast Master','Gloom Stalker','Fey Wanderer'],
+  rogue:['Thief','Assassin','Arcane Trickster','Swashbuckler','Soulknife'],
+  sorcerer:['Draconic Bloodline','Wild Magic','Divine Soul','Aberrant Mind','Clockwork Soul'],
+  warlock:['The Archfey','The Fiend','The Great Old One','The Celestial','The Hexblade','The Undead'],
+  wizard:['School of Abjuration','School of Conjuration','School of Divination','School of Enchantment','School of Evocation','School of Illusion','School of Necromancy','School of Transmutation','Bladesinging'],
+  artificer:['Alchemist','Artillerist','Battle Smith','Armorer'],
+  'blood-hunter':['Order of the Ghostslayer','Order of the Profane Soul','Order of the Mutant','Order of the Lycan'],
+};
+
+function setSubclass(charId, value) {
+  const ch = state.characters.find(x => x.id === charId);
+  if (!ch) return;
+  ch.subclass = value;
+  save();
+  renderMySheet();
+}
 
 // Weapon proficiency checker: returns true if class can use weapon
 function classCanUseWeapon(classId, weapon) {
@@ -1586,9 +1616,10 @@ function _rerender() {
     if (mapPanel && mapPanel.classList.contains('active')) renderCombatSidebar();
   }
   const sheetPanel = document.getElementById('panel-sheet');
-  if (sheetPanel && sheetPanel.classList.contains('active')) renderMySheet();
+  const typing = document.activeElement && ['TEXTAREA','INPUT','SELECT'].includes(document.activeElement.tagName);
+  if (sheetPanel && sheetPanel.classList.contains('active') && !typing) renderMySheet();
   const partyPanel = document.getElementById('panel-party');
-  if (partyPanel && partyPanel.classList.contains('active')) {
+  if (partyPanel && partyPanel.classList.contains('active') && !typing) {
     state.dmPartyCharId ? renderDMSheet(state.dmPartyCharId) : renderPartyPanel();
   }
 }
@@ -2917,7 +2948,15 @@ function renderMySheet() {
         </div>
         <div>
           <div style="font-family:'Cinzel Decorative',serif;font-size:1.4rem;color:var(--text-main)">${esc(c.name) || 'Unnamed Hero'}</div>
-          <div style="font-family:'Cinzel',serif;font-size:0.8rem;color:var(--text-muted);margin-top:0.2rem">${race?.name||''} ${cls?.name||''} · Level ${c.level} · ${bg?.name||'No Background'}${c.player ? ' · ' + esc(c.player) : ''}</div>
+          <div style="font-family:'Cinzel',serif;font-size:0.8rem;color:var(--text-muted);margin-top:0.2rem">${race?.name||''} ${cls?.name||''}${c.subclass ? ' (' + esc(c.subclass) + ')' : ''} · Level ${c.level} · ${bg?.name||'No Background'}${c.player ? ' · ' + esc(c.player) : ''}</div>
+          ${SUBCLASSES[c.class] && c.level >= (SUBCLASS_LEVEL[c.class]||3) ? `
+          <div style="display:flex;align-items:center;gap:0.4rem;margin-top:0.35rem">
+            <span style="font-family:'Cinzel',serif;font-size:0.7rem;color:var(--gold);text-transform:uppercase;letter-spacing:0.05em">${SUBCLASS_LABEL[c.class]||'Subclass'}:</span>
+            <select onchange="setSubclass('${c.id}', this.value)" style="padding:0.25rem 0.4rem;border:1px solid ${c.subclass?'var(--border)':'var(--gold)'};background:var(--parchment);border-radius:2px;font-family:'Cinzel',serif;font-size:0.75rem;color:var(--text-main)">
+              <option value="" ${!c.subclass?'selected':''}>— choose —</option>
+              ${SUBCLASSES[c.class].map(sc => `<option value="${sc}" ${c.subclass===sc?'selected':''}>${sc}</option>`).join('')}
+            </select>
+          </div>` : ''}
         </div>
       </div>
       <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
@@ -3111,9 +3150,12 @@ function renderMySheet() {
         </div>` : ''}
 
         <!-- LEVELED SPELLS -->
-        ${leveledSpells.length ? `
+        ${cls?.spellcaster ? `
         <div style="background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:1rem">
-          <div style="font-family:'Cinzel',serif;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.4rem">Spells</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem">
+            <div style="font-family:'Cinzel',serif;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted)">Spells</div>
+            <button onclick="openAddSpell('${c.id}')" style="background:none;border:1px solid var(--gold);color:var(--gold);border-radius:2px;padding:0.2rem 0.6rem;font-family:'Cinzel',serif;font-size:0.7rem;cursor:pointer">＋ ${c.class==='wizard'?'Copy to Spellbook':'Add Spell'}</button>
+          </div>
           ${[1,2,3,4,5,6,7,8,9].map(lvl => {
             const group = leveledSpells.filter(s => s.level === lvl);
             if (!group.length) return '';
@@ -3125,13 +3167,17 @@ function renderMySheet() {
               </div>`).join('')}
             </div>`;
           }).join('')}
+          ${!leveledSpells.length ? `<div style="font-size:0.8rem;color:var(--text-muted);font-style:italic">No spells known yet.</div>` : ''}
         </div>` : ''}
 
         <!-- INVENTORY -->
         <div style="background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:1rem">
           <div style="font-family:'Cinzel',serif;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.4rem">Inventory & Equipment</div>
           <textarea id="inventory-text" style="width:100%;min-height:120px;background:rgba(255,255,255,0.4);border:1px solid var(--parchment-deeper);border-radius:2px;padding:0.5rem;font-family:'Crimson Pro',serif;font-size:0.9rem;color:var(--text-main);resize:vertical;line-height:1.5" onblur="saveInventory('${c.id}',this.value)">${esc(c.inventory)}</textarea>
-          <div style="font-size:0.72rem;color:var(--text-muted);font-style:italic;margin-top:0.25rem">Edits save automatically when you click away.</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.35rem">
+            <span id="inventory-save-status" style="font-size:0.72rem;color:var(--text-muted);font-style:italic"></span>
+            <button onclick="saveInventoryBtn('${c.id}')" class="btn-primary btn-gold btn-sm" style="width:auto;padding:0.35rem 1rem">💾 Save Inventory</button>
+          </div>
         </div>
 
         <!-- BACKSTORY & NOTES -->
@@ -3242,6 +3288,90 @@ function saveInventory(id, text) {
   if (!c) return;
   c.inventory = text;
   save();
+}
+
+function saveInventoryBtn(id) {
+  const ta = document.getElementById('inventory-text');
+  if (!ta) return;
+  saveInventory(id, ta.value);
+  const status = document.getElementById('inventory-save-status');
+  if (status) {
+    status.textContent = '✓ Saved & synced';
+    status.style.color = 'var(--green-health)';
+    setTimeout(() => { if (status) { status.textContent = ''; } }, 2500);
+  }
+}
+
+// ============================================================
+// ADD SPELL (spellbook copying / learning outside level-up)
+// ============================================================
+function openAddSpell(charId) {
+  const c = state.characters.find(x => x.id === charId);
+  if (!c) return;
+  const cls = CLASSES.find(cl => cl.id === c.class);
+  if (!cls?.spellcaster) return;
+
+  // Max castable spell level from the class slot table
+  const lvlIdx = Math.min(c.level - 1, 19);
+  const slots = cls.spellSlots?.[lvlIdx] || [];
+  const maxSlot = slots.reduce((max, count, i) => count > 0 ? i + 1 : max, 0);
+
+  const available = SPELLS.filter(sp =>
+    sp.classes.includes(c.class) &&
+    sp.level <= maxSlot &&
+    !c.spells.includes(sp.id)
+  ).sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));
+
+  const existing = document.getElementById('addspell-modal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'addspell-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:4000;display:flex;align-items:center;justify-content:center;padding:1rem';
+  const title = c.class === 'wizard' ? 'Copy Spell to Spellbook' : 'Add Spell';
+  const note = c.class === 'wizard'
+    ? 'Copy spells you have found on scrolls or in other spellbooks. Check with your DM that you have access to the spell in-game.'
+    : 'Add a spell your character has learned. Check with your DM first.';
+  modal.innerHTML = `
+    <div style="background:var(--parchment);border:2px solid var(--gold);border-radius:2px;max-width:520px;width:100%;padding:1.5rem;box-shadow:0 24px 64px rgba(0,0,0,0.5);max-height:85vh;display:flex;flex-direction:column">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.5rem">
+        <div style="font-family:'Cinzel Decorative',serif;font-size:1.1rem;color:var(--text-main)">${title}</div>
+        <button onclick="document.getElementById('addspell-modal').remove()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--text-muted);line-height:1">✕</button>
+      </div>
+      <p style="font-size:0.8rem;color:var(--text-muted);font-style:italic;margin-bottom:0.75rem">${note} Spells up to level ${maxSlot} available.</p>
+      <input id="addspell-filter" placeholder="Search spells..." oninput="filterAddSpellList()" style="width:100%;padding:0.45rem;border:1px solid var(--border);background:rgba(255,255,255,0.4);border-radius:2px;font-family:'Crimson Pro',serif;font-size:0.9rem;margin-bottom:0.5rem">
+      <div id="addspell-list" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:0.2rem">
+        ${available.length ? available.map(sp => `
+          <div class="addspell-row" data-name="${sp.name.toLowerCase()}" style="display:flex;align-items:center;gap:0.5rem;padding:0.35rem 0.4rem;border-bottom:1px solid var(--parchment-deeper)">
+            <span style="font-family:'Cinzel',serif;font-size:0.7rem;color:var(--gold);width:38px;flex-shrink:0">${sp.level === 0 ? 'Cant.' : 'Lv ' + sp.level}</span>
+            <span style="font-size:0.88rem;cursor:pointer" onclick="showSheetSpellDetail('${sp.id}')" title="Click for details">${sp.name}</span>
+            <span style="font-size:0.72rem;color:var(--text-muted);font-style:italic;margin-left:auto;margin-right:0.5rem">${sp.school}</span>
+            <button onclick="confirmAddSpell('${charId}','${sp.id}')" style="background:none;border:1px solid var(--gold);color:var(--gold);border-radius:2px;padding:0.15rem 0.5rem;font-family:'Cinzel',serif;font-size:0.7rem;cursor:pointer;flex-shrink:0">Add</button>
+          </div>`).join('') : '<div style="font-size:0.85rem;color:var(--text-muted);font-style:italic;padding:0.5rem">No more spells available at your level.</div>'}
+      </div>
+    </div>`;
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
+}
+
+function filterAddSpellList() {
+  const q = (document.getElementById('addspell-filter')?.value || '').toLowerCase();
+  document.querySelectorAll('.addspell-row').forEach(row => {
+    row.style.display = row.dataset.name.includes(q) ? '' : 'none';
+  });
+}
+
+function confirmAddSpell(charId, spellId) {
+  const c = state.characters.find(x => x.id === charId);
+  if (!c) return;
+  if (!c.spells.includes(spellId)) {
+    c.spells.push(spellId);
+    save();
+  }
+  const sp = SPELLS.find(s => s.id === spellId);
+  showLimitWarning(`${sp?.name || 'Spell'} added!`);
+  document.getElementById('addspell-modal')?.remove();
+  renderMySheet();
 }
 
 function doShortRest(id) {
@@ -3360,6 +3490,11 @@ function openLevelUp(id) {
   if (newKnown !== undefined && newKnown > (oldKnown||0)) {
     const gained = newKnown - (oldKnown||0);
     changes.push({ type:'spell', label:'New Spells Known', value:`Choose ${gained} new spell${gained>1?'s':''}`, count: gained });
+  }
+
+  // Wizards add spells to their spellbook every level
+  if (cls?.spellbookPerLevel) {
+    changes.push({ type:'spell', label:'Spellbook', value:`Add ${cls.spellbookPerLevel} new spells to your spellbook`, count: cls.spellbookPerLevel });
   }
 
   // Build accessible spells at new level
