@@ -8,7 +8,8 @@ let state = {
   gridSize: 50,
   showGrid: true,
   maps: [], // [{id, name, img, tokens}]
-  activeMapId: null,
+  activeMapId: null,   // the live map players see (set by the DM)
+  viewMapId: null,     // the map this screen shows (DM can open any map privately)
   tokenLibrary: [], // [{id, name, img}] — reusable token images
   campaignId: null,
   syncEnabled: false,

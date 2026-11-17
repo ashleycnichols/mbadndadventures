@@ -56,8 +56,8 @@ function buildCharactersKeyed() {
 }
 
 function buildWorldData() {
-  if (state.activeMapId) {
-    const m = state.maps.find(m => m.id === state.activeMapId);
+  if (state.viewMapId) {
+    const m = state.maps.find(m => m.id === state.viewMapId);
     if (m) m.tokens = mapState.tokens;
   }
   return {
@@ -156,15 +156,17 @@ function applyWorld(world) {
     state.maps = [];
     state.activeMapId = null;
   }
-  const active = state.maps.find(m => m.id === state.activeMapId);
-  mapState.tokens = active ? [...(active.tokens || [])] : [];
-  state.mapImg = active ? active.img : null;
+  // Players always see the live map; the DM keeps whatever map they had open
+  const isDM = state.currentUser?.isDM;
+  if (!isDM || !state.maps.some(m => m.id === state.viewMapId)) state.viewMapId = state.activeMapId;
+  const viewed = state.maps.find(m => m.id === state.viewMapId);
+  mapState.tokens = viewed ? [...(viewed.tokens || [])] : [];
   syncGridControls();
 }
 
 function syncGridControls() {
   const gsInput = document.getElementById('grid-size');
-  if (gsInput) gsInput.value = state.gridSize;
+  if (gsInput) gsInput.value = mapGridSize();
   const gtDM = document.getElementById('grid-toggle');
   if (gtDM) gtDM.checked = state.showGrid;
   const gtPlayer = document.getElementById('grid-toggle-player');
@@ -189,15 +191,8 @@ function _rerender() {
   if (!state.currentUser) return;
   renderCharacters();
   renderMapTabs();
-  const active = state.maps.find(m => m.id === state.activeMapId);
-  if (active?.img && (!mapImage || mapImage.src !== active.img)) {
-    const img = new Image();
-    img.onload = () => { mapImage = img; redrawMap(); };
-    img.src = active.img;
-  } else {
-    if (!active?.img) mapImage = null;
-    redrawMap();
-  }
+  ensureMapImage();
+  redrawMap();
   renderTokenList();
   renderTokenLibrary();
   refreshSheets({ skipIfTyping: true });
@@ -251,7 +246,7 @@ function onRemoteWorld(world) {
   _worldSnap = canonStr(buildWorldData());
   _worldLoaded = true;
   applyTokenMoves();
-  if (state.currentUser?.isDM) syncPortraitsToWorld();
+  if (state.currentUser?.isDM) { syncPortraitsToWorld(); migrateInlineMapImages(); }
   cacheLocally();
   _rerender();
 }
@@ -275,7 +270,7 @@ function applyTokenMoves() {
   Object.entries(_lastMoves).forEach(([tokenId, mv]) => {
     if (!mv) return;
     const map = state.maps.find(m => m.id === mv.mapId);
-    const tokens = mv.mapId === state.activeMapId ? mapState.tokens : (map?.tokens || []);
+    const tokens = mv.mapId === state.viewMapId ? mapState.tokens : (map?.tokens || []);
     const t = tokens.find(x => x.id === tokenId);
     if (t && (t.x !== mv.x || t.y !== mv.y) && mapState.dragging !== t) {
       t.x = mv.x;
@@ -303,7 +298,7 @@ function syncPortraitsToWorld() {
     const lib = state.tokenLibrary.find(l => l.id === libKey);
     if (!lib) { state.tokenLibrary.push({ id: libKey, name: ch.name, img: ch.portrait, charId: ch.id }); changed = true; }
     else if (lib.img !== ch.portrait || lib.name !== ch.name) { lib.img = ch.portrait; lib.name = ch.name; changed = true; }
-    const allTokens = [mapState.tokens, ...state.maps.filter(m => m.id !== state.activeMapId).map(m => m.tokens || [])];
+    const allTokens = [mapState.tokens, ...state.maps.filter(m => m.id !== state.viewMapId).map(m => m.tokens || [])];
     allTokens.forEach(list => list.forEach(t => {
       if (t.charId === ch.id && t.img !== ch.portrait) { t.img = ch.portrait; changed = true; }
     }));

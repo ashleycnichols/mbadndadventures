@@ -183,7 +183,7 @@ function uploadPortrait(charId, input) {
       // Only the DM changes the map. A player's new portrait reaches the
       // token library and their tokens when the DM's screen receives it.
       if (state.currentUser?.isDM) {
-        const active = state.maps.find(m => m.id === state.activeMapId);
+        const active = state.maps.find(m => m.id === state.viewMapId);
         if (active && !mapState.tokens.some(t => t.charId === charId)) {
           mapState.tokens.push({ id: 'tok_' + Date.now(), name: ch.name, type: 'player', charId,
             x: 0.5, y: 0.5, img: portrait, hidden: false, size: 1 });

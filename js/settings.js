@@ -17,19 +17,26 @@ function saveDMPass() {
 
 // Full backup: every character, map, token and library image
 function exportData() {
-  const data = {
-    version: 2,
-    exportedAt: new Date().toISOString(),
-    campaign: { id: state.campaignId, name: campaignInfo?.name },
-    characters: buildCharactersKeyed(),
-    world: buildWorldData(),
-    dmNotes: state.dmNotes || {},
-  };
-  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'chronicler-' + slugify(campaignInfo?.name || state.campaignId) + '-backup-' + new Date().toISOString().slice(0, 10) + '.json';
-  a.click();
+  // Map images are stored separately; fetch them so the backup is complete
+  const images = (window.fbGet && state.syncEnabled)
+    ? window.fbGet('campaigns/' + state.campaignId + '/mapImages').catch(() => null)
+    : Promise.resolve(null);
+  images.then(mapImages => {
+    const data = {
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      campaign: { id: state.campaignId, name: campaignInfo?.name },
+      characters: buildCharactersKeyed(),
+      world: buildWorldData(),
+      mapImages: mapImages || {},
+      dmNotes: state.dmNotes || {},
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'chronicler-' + slugify(campaignInfo?.name || state.campaignId) + '-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+    a.click();
+  });
 }
 
 // Restore a backup, replacing the campaign for everyone (DM only)
@@ -40,13 +47,14 @@ function importData(evt) {
   const reader = new FileReader();
   reader.onload = e => {
     input.value = '';
-    let chars, world, notes = null;
+    let chars, world, notes = null, mapImages = null;
     try {
       const d = JSON.parse(e.target.result);
       if (d.version === 2) {
         chars = Object.values(d.characters || {});
         world = d.world || {};
         notes = d.dmNotes || {};
+        mapImages = d.mapImages || null;
       } else {
         // Older single-map export
         chars = Array.isArray(d.characters) ? d.characters : Object.values(d.characters || {});
@@ -68,6 +76,14 @@ function importData(evt) {
       if (state.syncEnabled && window.fbDeleteCharacter) window.fbDeleteCharacter(state.campaignId, c.id);
     });
     state.characters = chars.filter(c => c && c.id).map(normalizeChar);
+    if (mapImages && state.syncEnabled && window.fbSet) {
+      window.fbSet('campaigns/' + state.campaignId + '/mapImages', mapImages);
+      Object.entries(mapImages).forEach(([id, src]) => {
+        const maps = Array.isArray(world.maps) ? world.maps : Object.values(world.maps || {});
+        const m = maps.find(x => x.id === id);
+        if (m) _mapImgCache[id] = { v: m.imgV, src };
+      });
+    }
     applyWorld(world);
     saveNow();
     if (notes) {

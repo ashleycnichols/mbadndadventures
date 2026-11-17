@@ -96,12 +96,20 @@
         <div class="map-viewport" id="map-viewport">
           <canvas id="map-canvas"></canvas>
           <div id="token-popup" class="token-popup hidden"></div>
+          <div class="map-overlay" title="Scroll or pinch to zoom; drag empty space to move around">
+            <button onclick="zoomMap(1/1.25)" title="Zoom out">−</button>
+            <span id="map-zoom-label">100%</span>
+            <button onclick="zoomMap(1.25)" title="Zoom in">+</button>
+            <button onclick="resetMapView()" title="Fit the whole map">Fit</button>
+            <button onclick="toggleWideMap()" title="Bigger map: hide or show the side panel">⛶</button>
+          </div>
         </div>
         <div class="map-sidebar">
           <!-- DM-only map management section -->
           <div class="sidebar-section" id="dm-map-section" style="display:none">
-            <div class="sidebar-title">Map Settings</div>
+            <div class="sidebar-title">This Map</div>
             <div class="map-controls">
+              <div id="map-live-status"></div>
               <div class="upload-zone" onclick="document.getElementById('map-img-input').click()">
                 🗺 Upload Map Image
               </div>
@@ -112,8 +120,12 @@
               </div>
               <div class="grid-control">
                 <label>Cell size:</label>
-                <input type="number" id="grid-size" value="50" min="5" max="300" onchange="redrawMap()" title="Width of one grid square, in pixels of the map image. Match it to the map's own grid.">
+                <input type="number" id="grid-size" value="50" min="5" max="300" onchange="setMapGridSize(this.value)" title="Width of one grid square, in pixels of the map image. Match it to the map's own grid.">
                 <label title="Pixels of the map image, so the grid lines up the same on every screen">map px</label>
+              </div>
+              <div style="display:flex;gap:0.4rem">
+                <button class="control-btn" style="flex:1;justify-content:center" onclick="duplicateMap()" title="Save a copy, e.g. to reuse a set-up later">⧉ Copy map</button>
+                <button class="control-btn" style="flex:1;justify-content:center;color:var(--blood)" onclick="deleteMap()">✕ Delete</button>
               </div>
               <div style="margin-top:0.5rem">
                 <label class="form-label">Map Name</label>
@@ -130,51 +142,61 @@
           </div>
 
           <div class="sidebar-section" id="dm-token-section">
-            <div class="sidebar-title">Add Token</div>
+            <div class="sidebar-title">Add Tokens</div>
             <div class="map-controls">
-              <!-- Token image library quick-select -->
-              <div id="token-library-section" style="display:none;margin-bottom:0.5rem">
-                <div style="font-family:'Cinzel',serif;font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.35rem">Saved Images</div>
-                <div id="token-library-grid" style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-bottom:0.4rem"></div>
-                <div style="font-size:0.7rem;color:var(--text-muted);font-style:italic">Click to select · hover and click ✕ to delete</div>
+              <div class="quick-row">
+                <span class="form-label" style="margin:0">How many</span>
+                <button class="qty-btn" onclick="setQuickQty(-1)">−</button>
+                <input id="quick-qty" type="number" min="1" max="20" value="1" class="qty-input">
+                <button class="qty-btn" onclick="setQuickQty(1)">+</button>
               </div>
-              <div id="token-img-preview" style="display:none;margin-bottom:0.4rem;text-align:center">
-                <img id="token-img-preview-img" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid var(--gold)">
-                <div style="font-size:0.72rem;color:var(--green-health);margin-top:0.2rem">Image selected ✓</div>
-              </div>
-              <div class="upload-zone" onclick="document.getElementById('token-img-input').click()">
-                🎭 Upload Token Image
-              </div>
-              <input type="file" id="token-img-input" accept="image/*" style="display:none" onchange="loadTokenImage(event)">
-              <div class="input-group" style="margin:0.5rem 0">
-                <label class="form-label">Token Name</label>
-                <input class="parchment-input" id="new-token-name" type="text" placeholder="e.g. Goblin Archer">
-              </div>
-              <div class="input-group" style="margin:0.5rem 0">
-                <label class="form-label">Type</label>
-                <select class="parchment-input" id="new-token-type">
-                  <option value="npc">NPC</option>
-                  <option value="monster">Monster</option>
-                  <option value="player">Player</option>
-                </select>
-              </div>
-              <div class="input-group" style="margin:0.5rem 0">
-                <label class="form-label">Link to Character</label>
-                <select class="parchment-input" id="new-token-char">
-                  <option value="">— none —</option>
-                </select>
-              </div>
-              <div class="input-group" style="margin:0.5rem 0">
-                <label class="form-label">Size</label>
-                <select class="parchment-input" id="new-token-size">
-                  <option value="1">Small / Medium (1×1)</option>
+              <div class="quick-row">
+                <span class="form-label" style="margin:0">Size</span>
+                <select id="new-token-size" class="parchment-input" style="padding:0.25rem 0.4rem;font-size:0.9rem">
+                  <option value="1">Medium (1×1)</option>
                   <option value="2">Large (2×2)</option>
                   <option value="3">Huge (3×3)</option>
                   <option value="4">Gargantuan (4×4)</option>
                 </select>
               </div>
-              <button class="control-btn" onclick="generatePlayerTokens()" style="background:rgba(45,106,45,0.15);border-color:var(--green-health);color:var(--green-health);margin-bottom:0.5rem">⚡ Auto-Generate Player Tokens</button>
-              <button class="control-btn" onclick="addToken()">➕ Place Token on Map</button>
+              <label class="quick-row" style="cursor:pointer;font-size:0.9rem"><input type="checkbox" id="quick-hidden"> Add hidden from players</label>
+              <div id="quick-token-presets" class="quick-chips"></div>
+              <!-- Saved token images: one click adds them -->
+              <div id="token-library-section" style="display:none">
+                <div class="form-label" style="margin:0.4rem 0 0.3rem">Saved Images</div>
+                <div id="token-library-grid" style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-bottom:0.3rem"></div>
+                <div style="font-size:0.8rem;color:var(--text-muted);font-style:italic">Click to add · right-click to use in the form below · hover ✕ to delete</div>
+              </div>
+              <button class="control-btn" onclick="generatePlayerTokens()" style="background:rgba(45,106,45,0.15);border-color:var(--green-health);color:var(--green-health)">⚡ Add all player characters</button>
+
+              <details class="custom-token">
+                <summary>Custom token (name, image, link to character)</summary>
+                <div id="token-img-preview" style="display:none;margin:0.4rem 0;text-align:center">
+                  <img id="token-img-preview-img" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid var(--gold)">
+                  <div style="font-size:0.8rem;color:var(--green-health);margin-top:0.2rem">Image selected ✓</div>
+                </div>
+                <div class="upload-zone" style="margin-top:0.5rem" onclick="document.getElementById('token-img-input').click()">🎭 Upload Token Image</div>
+                <input type="file" id="token-img-input" accept="image/*" style="display:none" onchange="loadTokenImage(event)">
+                <div class="input-group" style="margin:0.5rem 0">
+                  <label class="form-label">Token Name</label>
+                  <input class="parchment-input" id="new-token-name" type="text" placeholder="e.g. Goblin Archer">
+                </div>
+                <div class="input-group" style="margin:0.5rem 0">
+                  <label class="form-label">Type</label>
+                  <select class="parchment-input" id="new-token-type">
+                    <option value="monster">Monster</option>
+                    <option value="npc">NPC</option>
+                    <option value="player">Player</option>
+                  </select>
+                </div>
+                <div class="input-group" style="margin:0.5rem 0">
+                  <label class="form-label">Link to Character</label>
+                  <select class="parchment-input" id="new-token-char">
+                    <option value="">— none —</option>
+                  </select>
+                </div>
+                <button class="control-btn" onclick="addToken()">➕ Place on map (uses "How many")</button>
+              </details>
             </div>
           </div>
 

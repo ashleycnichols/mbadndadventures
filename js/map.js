@@ -219,37 +219,126 @@ function renderCombatSidebar() {
   </div>`;
 }
 
+// ============================================================
+// MAP GEOMETRY, ZOOM AND PAN
+// ============================================================
 // Token positions are stored as fractions (0 to 1) of the map image, so they
 // land on the same spot on every screen. The image is fitted inside the canvas
-// without stretching; the grid is measured in map-image pixels.
+// without stretching, then zoomed and panned per device (mapView is never synced).
+// The grid is measured in map-image pixels and set per map.
+let mapView = { zoom: 1, panX: 0, panY: 0 };
+const MIN_ZOOM = 0.5, MAX_ZOOM = 5;
+
+function viewedMap() { return state.maps.find(m => m.id === state.viewMapId) || null; }
+function mapGridSize() { return viewedMap()?.gridSize || state.gridSize || 50; }
+
 function mapRect() {
-  if (canvas && mapImage && mapImage.naturalWidth) {
-    const scale = Math.min(canvas.width / mapImage.naturalWidth, canvas.height / mapImage.naturalHeight);
-    const w = mapImage.naturalWidth * scale, h = mapImage.naturalHeight * scale;
-    return { x: (canvas.width - w) / 2, y: (canvas.height - h) / 2, w, h, scale };
+  if (!canvas) return { x: 0, y: 0, w: 1, h: 1, scale: 1 };
+  let bw, bh, baseScale;
+  if (mapImage && mapImage.naturalWidth) {
+    baseScale = Math.min(canvas.width / mapImage.naturalWidth, canvas.height / mapImage.naturalHeight);
+    bw = mapImage.naturalWidth * baseScale; bh = mapImage.naturalHeight * baseScale;
+  } else {
+    baseScale = 1; bw = canvas.width; bh = canvas.height;
   }
-  return { x: 0, y: 0, w: canvas?.width || 1, h: canvas?.height || 1, scale: 1 };
+  const w = bw * mapView.zoom, h = bh * mapView.zoom;
+  return { x: (canvas.width - w) / 2 + mapView.panX, y: (canvas.height - h) / 2 + mapView.panY, w, h, scale: baseScale * mapView.zoom };
 }
-function gridPx() { return (state.gridSize || 50) * mapRect().scale; }
+function gridPx() { return mapGridSize() * mapRect().scale; }
 function tokX(t) { const r = mapRect(); return r.x + t.x * r.w; }
 function tokY(t) { const r = mapRect(); return r.y + t.y * r.h; }
-// Convert canvas pixels to fractional position
 function canvasToTok(px, dim) { return dim > 0 ? px / dim : 0; }
-// Migrate old pixel coords to fractions (called when loading tokens)
+// Old saves kept pixel positions; convert any to fractions
 function migrateTokenCoords(tokens) {
   if (!canvas || !tokens) return tokens;
-  return tokens.map(t => {
-    // Heuristic: if x or y > 1 it's still in pixel space
-    if (t.x > 1 || t.y > 1) {
-      return { ...t, x: canvasToTok(t.x, canvas.width), y: canvasToTok(t.y, canvas.height) };
-    }
-    return t;
+  return tokens.map(t => (t.x > 1 || t.y > 1)
+    ? { ...t, x: canvasToTok(t.x, canvas.width), y: canvasToTok(t.y, canvas.height) } : t);
+}
+
+// Zoom around a point on the canvas (defaults to the centre)
+function zoomMap(factor, cx, cy) {
+  if (!canvas) return;
+  cx = cx ?? canvas.width / 2; cy = cy ?? canvas.height / 2;
+  const before = mapRect();
+  const fx = (cx - before.x) / before.w, fy = (cy - before.y) / before.h;
+  mapView.zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, mapView.zoom * factor));
+  const after = mapRect();
+  // Keep the point under the cursor where it was
+  mapView.panX += (cx - fx * after.w) - after.x;
+  mapView.panY += (cy - fy * after.h) - after.y;
+  redrawMap();
+  updateZoomLabel();
+}
+// DM: grid size belongs to the open map
+function setMapGridSize(v) {
+  const m = viewedMap();
+  const n = Math.max(5, Math.min(300, +v || 50));
+  if (m && n !== mapGridSize()) { m.gridSize = n; save(); }
+  redrawMap();
+}
+
+function resetMapView() { mapView = { zoom: 1, panX: 0, panY: 0 }; redrawMap(); updateZoomLabel(); }
+function updateZoomLabel() {
+  const el = document.getElementById('map-zoom-label');
+  if (el) el.textContent = Math.round(mapView.zoom * 100) + '%';
+}
+function toggleWideMap() {
+  const box = document.querySelector('.map-container');
+  if (!box) return;
+  box.classList.toggle('map-wide');
+  localStorage.setItem('chronicler_map_wide', box.classList.contains('map-wide') ? '1' : '');
+}
+
+// ============================================================
+// MAP IMAGES: stored at campaigns/<id>/mapImages/<mapId>, fetched when needed
+// ============================================================
+const _mapImgCache = {}; // mapId -> { v, src }
+let _mapImgWanted = null;
+
+function mapImageKey(m) { return m ? m.id + ':' + (m.img ? 'inline' : (m.imgV || '')) : ''; }
+
+function ensureMapImage() {
+  const m = viewedMap();
+  const key = mapImageKey(m);
+  if (!m || (!m.img && !m.imgV)) { _mapImgWanted = key; if (mapImage) { mapImage = null; redrawMap(); } return; }
+  if (_mapImgWanted === key && mapImage) return;
+  _mapImgWanted = key;
+  const show = src => {
+    const img = new Image();
+    img.onload = () => { if (_mapImgWanted === key) { mapImage = img; redrawMap(); } };
+    img.src = src;
+  };
+  if (m.img) return show(m.img); // older maps kept the image inline
+  const cached = _mapImgCache[m.id];
+  if (cached && cached.v === m.imgV) return show(cached.src);
+  mapImage = null; redrawMap();
+  if (!window.fbGet || !state.syncEnabled) return;
+  window.fbGet('campaigns/' + state.campaignId + '/mapImages/' + m.id).then(src => {
+    if (!src) return;
+    _mapImgCache[m.id] = { v: m.imgV, src };
+    if (_mapImgWanted === key) show(src);
   });
+}
+
+// DM: move images that older versions stored inside the world into their own path
+let _migratingImages = false;
+function migrateInlineMapImages() {
+  if (_migratingImages || !state.currentUser?.isDM || !state.syncEnabled || !window.fbSet) return;
+  const inline = state.maps.filter(m => m.img);
+  if (!inline.length) return;
+  _migratingImages = true;
+  Promise.all(inline.map(m => {
+    const v = Date.now();
+    return window.fbSet('campaigns/' + state.campaignId + '/mapImages/' + m.id, m.img).then(() => {
+      _mapImgCache[m.id] = { v, src: m.img };
+      delete m.img; m.imgV = v;
+    });
+  })).then(() => { _migratingImages = false; saveNow(); });
 }
 
 let _mapInited = false;
 function initMap() {
-  if (_mapInited) return; // set up once; a second call would double every drag handler
+  if (_mapInited) return; // set up once; a second call would double every handler
   _mapInited = true;
   canvas = document.getElementById('map-canvas');
   ctx = canvas.getContext('2d');
@@ -258,65 +347,69 @@ function initMap() {
   const resizeCanvas = () => {
     canvas.width = viewport.clientWidth;
     canvas.height = viewport.clientHeight;
-    // Migrate any old pixel-coord tokens to fractional on first resize
     mapState.tokens = migrateTokenCoords(mapState.tokens);
     redrawMap();
   };
   new ResizeObserver(resizeCanvas).observe(viewport);
   resizeCanvas();
+  if (localStorage.getItem('chronicler_map_wide')) document.querySelector('.map-container')?.classList.add('map-wide');
 
-  // Load active map image
-  const active = state.maps.find(m => m.id === state.activeMapId);
-  if (active?.img) {
-    const img = new Image();
-    img.onload = () => { mapImage = img; redrawMap(); };
-    img.src = active.img;
-  }
-
+  ensureMapImage();
   renderTokenList();
   renderTokenLibrary();
+  renderQuickTokens();
   if (!state.currentUser?.isDM) renderCombatSidebar();
 
-  // Mouse events for drag
   canvas.addEventListener('mousedown', onMapMouseDown);
   canvas.addEventListener('mousemove', onMapMouseMove);
   canvas.addEventListener('mouseup', onMapMouseUp);
   canvas.addEventListener('mouseleave', onMapMouseUp);
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    const r = canvas.getBoundingClientRect();
+    zoomMap(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX - r.left, e.clientY - r.top);
+  }, { passive: false });
   canvas.addEventListener('touchstart', onTouchStart, {passive:false});
   canvas.addEventListener('touchmove', onTouchMove, {passive:false});
-  canvas.addEventListener('touchend', onMapMouseUp);
+  canvas.addEventListener('touchend', onTouchEnd);
+  updateZoomLabel();
 }
 
 function loadMapImage(evt) {
   const file = evt.target.files[0];
   if (!file) return;
+  evt.target.value = '';
   const reader = new FileReader();
   reader.onload = e => {
-    // Compress map to max 1200px wide at 0.85 quality — keeps it sharp but Firebase-safe
-    compressImage(e.target.result, 1200, 0.85, compressed => {
-      let active = state.maps.find(m => m.id === state.activeMapId);
-      if (!active) {
-        active = { id: 'map_' + Date.now(), name: 'Map 1', img: null, tokens: [] };
-        state.maps.push(active);
-        state.activeMapId = active.id;
+    // Up to 2000px: sharp when zoomed in. Stored separately, so it's sent only once.
+    compressImage(e.target.result, 2000, 0.82, compressed => {
+      let m = viewedMap();
+      if (!m) {
+        m = { id: 'map_' + Date.now(), name: 'Map 1', tokens: [] };
+        state.maps.push(m);
+        state.viewMapId = m.id;
+        if (!state.activeMapId) state.activeMapId = m.id;
       }
-      active.img = compressed;
-      state.mapImg = compressed;
-      const img = new Image();
-      img.onload = () => {
-        mapImage = img;
-        redrawMap();
-        renderMapTabs();
-        // Send straight away: map uploads are large and shouldn't wait
-        saveNow();
-      };
-      img.src = compressed;
+      const v = Date.now();
+      delete m.img;
+      m.imgV = v;
+      _mapImgCache[m.id] = { v, src: compressed };
+      const send = window.fbSet && state.syncEnabled
+        ? window.fbSet('campaigns/' + state.campaignId + '/mapImages/' + m.id, compressed)
+        : Promise.resolve();
+      // The image goes first, then the map record that points to it
+      send.then(() => saveNow());
+      resetMapView();
+      ensureMapImage();
+      renderMapTabs();
     });
   };
   reader.readAsDataURL(file);
 }
 
-// ---- Multi-map management ----
+// ============================================================
+// MAP LIBRARY (DM): open any map privately, show one to players
+// ============================================================
 function renderMapTabs() {
   const bar = document.getElementById('map-tabs-bar');
   if (!bar) return;
@@ -325,82 +418,108 @@ function renderMapTabs() {
 
   let html = '';
   state.maps.forEach(m => {
-    const isActive = m.id === state.activeMapId;
-    html += `<div style="display:flex;align-items:center;gap:0;background:${isActive?'var(--parchment)':'transparent'};border:1px solid ${isActive?'var(--gold)':'var(--border)'};border-radius:2px;overflow:hidden">
-      <button onclick="switchMap('${m.id}')" style="background:none;border:none;cursor:pointer;padding:0.3rem 0.75rem;font-family:var(--font-ui);font-size:0.8rem;color:${isActive?'var(--gold)':'var(--text-muted)'};white-space:nowrap">${esc(m.name)}${m.img ? '' : ' <span style="opacity:0.5;font-size:0.7rem">(no image)</span>'}</button>
-      ${state.maps.length > 1 ? `<button onclick="deleteMap('${m.id}')" style="background:none;border:none;border-left:1px solid var(--border);cursor:pointer;padding:0.3rem 0.4rem;color:var(--text-muted);font-size:0.8rem;line-height:1" title="Delete map">✕</button>` : ''}
+    const open = m.id === state.viewMapId;
+    const live = m.id === state.activeMapId;
+    html += `<div style="display:flex;align-items:center;background:${open ? 'var(--parchment)' : 'transparent'};border:1px solid ${open ? 'var(--gold)' : 'var(--border)'};border-radius:2px;overflow:hidden">
+      <button onclick="viewMap('${m.id}')" title="${live ? 'Players see this map' : 'Open privately to prepare'}" style="background:none;border:none;cursor:pointer;padding:0.3rem 0.75rem;font-family:var(--font-ui);font-size:0.9rem;color:${open ? 'var(--gold-text)' : 'var(--text-muted)'};white-space:nowrap">${live ? '<span style="color:var(--blood);font-size:0.75rem;font-weight:700">● LIVE </span>' : ''}${esc(m.name)}${(m.img || m.imgV) ? '' : ' <span style="opacity:0.6;font-size:0.78rem">(no image)</span>'}</button>
     </div>`;
   });
-
-  html += `<button onclick="addNewMap()" style="background:none;border:1px dashed var(--border);border-radius:2px;cursor:pointer;padding:0.3rem 0.6rem;font-family:var(--font-ui);font-size:0.8rem;color:var(--text-muted)" title="Add new map">+ New Map</button>`;
+  html += `<button onclick="addNewMap()" style="background:none;border:1px dashed var(--border);border-radius:2px;cursor:pointer;padding:0.3rem 0.6rem;font-family:var(--font-ui);font-size:0.9rem;color:var(--text-muted)" title="Add a new map">+ New Map</button>`;
   bar.innerHTML = html;
 
-  // Update map name input
+  // Actions for the open map
+  const m = viewedMap();
   const nameInput = document.getElementById('active-map-name');
-  if (nameInput) {
-    const active = state.maps.find(m => m.id === state.activeMapId);
-    nameInput.value = active ? active.name : '';
+  if (nameInput && document.activeElement !== nameInput) nameInput.value = m ? m.name : '';
+  const liveBox = document.getElementById('map-live-status');
+  if (liveBox) {
+    liveBox.innerHTML = !m ? '' : m.id === state.activeMapId
+      ? `<div style="font-size:0.9rem;color:var(--blood);font-weight:600">● Players can see this map</div>`
+      : `<button class="control-btn" onclick="showMapToPlayers()" style="border-color:var(--blood);color:var(--blood);font-weight:600">📡 Show this map to players</button>
+         <div style="font-size:0.82rem;color:var(--text-muted);font-style:italic;margin-top:0.25rem">Players see "${esc(state.maps.find(x => x.id === state.activeMapId)?.name || 'nothing')}" until you do.</div>`;
   }
+}
+
+// Keep the open map's tokens filed under it before opening another
+function stashViewedTokens() {
+  const cur = viewedMap();
+  if (cur) cur.tokens = mapState.tokens;
+}
+
+function openMapLocally(id) {
+  stashViewedTokens();
+  state.viewMapId = id;
+  const next = viewedMap();
+  mapState.tokens = next ? [...(next.tokens || [])] : [];
+  mapState.dragging = null;
+  resetMapView();
+  ensureMapImage();
+  syncGridControls();
+  renderMapTabs();
+  renderTokenList();
+}
+
+// DM: open a map to look at or prepare. Players keep seeing the live map.
+function viewMap(id) {
+  if (id === state.viewMapId) return;
+  openMapLocally(id);
+}
+
+function showMapToPlayers() {
+  const m = viewedMap();
+  if (!m) return;
+  state.activeMapId = m.id;
+  saveNow();
+  renderMapTabs();
+  showLimitWarning(`Players now see "${m.name}".`);
 }
 
 function addNewMap() {
-  // Save current map state before switching
-  if (state.activeMapId) {
-    const cur = state.maps.find(m => m.id === state.activeMapId);
-    if (cur) cur.tokens = mapState.tokens;
-  }
-  const newMap = { id: 'map_' + Date.now(), name: `Map ${state.maps.length + 1}`, img: null, tokens: [] };
+  stashViewedTokens();
+  const newMap = { id: 'map_' + Date.now(), name: `Map ${state.maps.length + 1}`, tokens: [], gridSize: state.gridSize || 50 };
   state.maps.push(newMap);
-  state.activeMapId = newMap.id;
-  mapState.tokens = [];
-  mapImage = null;
-  state.mapImg = null;
+  if (!state.activeMapId) state.activeMapId = newMap.id;
   save();
-  renderMapTabs();
-  redrawMap();
-  renderTokenList();
+  openMapLocally(newMap.id);
+  showLimitWarning('New map created. Players won\'t see it until you press "Show this map to players".');
 }
 
-function switchMap(id) {
-  if (id === state.activeMapId) return;
-  // Save current tokens to current map before switching
-  if (state.activeMapId) {
-    const cur = state.maps.find(m => m.id === state.activeMapId);
-    if (cur) cur.tokens = mapState.tokens;
-  }
-  state.activeMapId = id;
-  const next = state.maps.find(m => m.id === id);
-  mapState.tokens = next ? [...(next.tokens || [])] : [];
-  state.mapImg = next?.img || null;
-  mapState.dragging = null;
-
-  if (next?.img) {
-    const img = new Image();
-    img.onload = () => { mapImage = img; redrawMap(); };
-    img.src = next.img;
-  } else {
-    mapImage = null;
-    redrawMap();
-  }
-  // Send straight away so players follow the DM to the new map
-  saveNow();
-  renderMapTabs();
-  renderTokenList();
+function duplicateMap() {
+  const src = viewedMap();
+  if (!src) return;
+  stashViewedTokens();
+  const id = 'map_' + Date.now();
+  const copy = JSON.parse(JSON.stringify({ ...src, id, name: src.name + ' (copy)' }));
+  copy.tokens = (copy.tokens || []).map((t, i) => ({ ...t, id: 'tok_' + Date.now() + '_' + i }));
+  const finish = () => { state.maps.push(copy); saveNow(); openMapLocally(id); showLimitWarning(`Copied to "${copy.name}".`); };
+  if (src.img || !src.imgV) return finish();
+  // Copy the image too, so deleting either map leaves the other intact
+  const path = 'campaigns/' + state.campaignId + '/mapImages/';
+  const cached = _mapImgCache[src.id];
+  (cached ? Promise.resolve(cached.src) : window.fbGet(path + src.id)).then(img => {
+    if (img) { _mapImgCache[id] = { v: copy.imgV, src: img }; return window.fbSet(path + id, img); }
+  }).then(finish);
 }
 
 function deleteMap(id) {
+  id = id || state.viewMapId;
+  const m = state.maps.find(x => x.id === id);
+  if (!m) return;
   if (state.maps.length <= 1) { showLimitWarning("Can't delete the last map."); return; }
-  if (!confirm(`Delete "${state.maps.find(m=>m.id===id)?.name}"? This cannot be undone.`)) return;
-  // Move off the map first, so its tokens are filed under it and not under the next map
-  if (state.activeMapId === id) switchMap(state.maps.find(m => m.id !== id).id);
-  state.maps = state.maps.filter(m => m.id !== id);
+  if (!confirm(`Delete "${m.name}" and its tokens? This cannot be undone.`)) return;
+  const other = state.maps.find(x => x.id !== id);
+  if (state.viewMapId === id) openMapLocally(other.id);
+  if (state.activeMapId === id) state.activeMapId = state.viewMapId;
+  state.maps = state.maps.filter(x => x.id !== id);
+  delete _mapImgCache[id];
+  if (window.fbSet && state.syncEnabled) window.fbSet('campaigns/' + state.campaignId + '/mapImages/' + id, null);
   saveNow();
   renderMapTabs();
 }
 
 function renameActiveMap(name) {
-  const m = state.maps.find(m => m.id === state.activeMapId);
-  if (m && name.trim()) { m.name = name.trim(); save(); renderMapTabs(); }
+  const m = viewedMap();
+  if (m && name.trim() && m.name !== name.trim()) { m.name = name.trim(); save(); renderMapTabs(); }
 }
 
 function compressImage(dataUrl, maxSize, quality, callback) {
@@ -487,7 +606,7 @@ function renderTokenLibrary() {
 
   grid.innerHTML = state.tokenLibrary.map(entry => `
     <div style="position:relative" title="${esc(entry.name)}">
-      <button id="lib-btn-${entry.id}" class="lib-token-btn" onclick="selectLibraryToken('${entry.id}')"
+      <button id="lib-btn-${entry.id}" class="lib-token-btn" onclick="quickAddLibrary('${entry.id}')" oncontextmenu="event.preventDefault();selectLibraryToken('${entry.id}')"
         style="width:44px;height:44px;border-radius:50%;border:2px solid var(--border);background:var(--parchment-dark);cursor:pointer;overflow:hidden;padding:0;outline:${pendingTokenImg===entry.img?'2px solid var(--gold)':'none'}">
         <img src="${entry.img}" style="width:100%;height:100%;object-fit:cover">
       </button>
@@ -505,74 +624,142 @@ function renderTokenLibrary() {
   });
 }
 
-function generatePlayerTokens() {
-  const active = state.maps.find(m => m.id === state.activeMapId);
-  if (!active) { alert('No active map — upload a map first.'); return; }
+// ---- Placing tokens ----
+// Where the middle of the DM's current view falls on the map, as fractions
+function viewCentreFrac() {
+  const r = mapRect();
+  return { x: Math.min(0.95, Math.max(0.05, (canvas.width / 2 - r.x) / r.w)),
+           y: Math.min(0.95, Math.max(0.05, (canvas.height / 2 - r.y) / r.h)) };
+}
 
-  let added = 0;
-  state.characters.forEach(ch => {
-    // Skip if already has a token on this map
-    if (mapState.tokens.some(t => t.charId === ch.id)) return;
-    // Use portrait if available, otherwise no image
-    const img = ch.portrait || null;
-    // Spread tokens out in a row along the top of the map
-    // Space tokens evenly along the top as fractions
-    const tok = {
-      id: 'tok_' + Date.now() + '_' + ch.id,
-      name: ch.name,
-      type: 'player',
-      charId: ch.id,
-      size: 1,
-      x: 0.05 + (added * 0.1),
-      y: 0.05,
-      img,
-      hidden: false,
-    };
-    mapState.tokens.push(tok);
-    added++;
-  });
-
-  if (added === 0) {
-    alert('All player characters already have tokens on this map.');
-    return;
+// n grid-snapped positions in a tight block around a centre point
+function clusterPositions(n, size, centre) {
+  const r = mapRect();
+  const gs = gridPx();
+  const cols = Math.ceil(Math.sqrt(n));
+  const step = gs * Math.max(1, size);
+  const cx = r.x + centre.x * r.w, cy = r.y + centre.y * r.h;
+  const startCol = Math.floor((cx - r.x) / gs) - Math.floor((cols - 1) * Math.max(1, size) / 2);
+  const startRow = Math.floor((cy - r.y) / gs) - Math.floor((Math.ceil(n / cols) - 1) * Math.max(1, size) / 2);
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const col = startCol + (i % cols) * Math.max(1, size);
+    const row = startRow + Math.floor(i / cols) * Math.max(1, size);
+    const px = r.x + col * gs + (size * gs) / 2, py = r.y + row * gs + (size * gs) / 2;
+    out.push({ x: Math.min(1, Math.max(0, (px - r.x) / r.w)), y: Math.min(1, Math.max(0, (py - r.y) / r.h)) });
   }
+  return out;
+}
 
-  active.tokens = mapState.tokens;
+// Names continue from what's already on the map: Goblin 1, Goblin 2...
+function numberedNames(base, n) {
+  const re = new RegExp('^' + base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?: (\\d+))?$');
+  let max = 0, exists = false;
+  mapState.tokens.forEach(t => { const m = (t.name || '').match(re); if (m) { exists = true; max = Math.max(max, +(m[1] || 1)); } });
+  if (n === 1 && !exists) return [base];
+  return Array.from({ length: n }, (_, i) => `${base} ${max + i + 1}`);
+}
+
+function placeTokens(spec, n) {
+  const m = viewedMap();
+  if (!m) { showLimitWarning('Add a map first.'); return []; }
+  n = Math.max(1, Math.min(20, n || 1));
+  const size = spec.size || 1;
+  const names = numberedNames(spec.name || 'Token', n);
+  const spots = clusterPositions(n, size, viewCentreFrac());
+  const made = names.map((name, i) => ({
+    id: 'tok_' + Date.now() + '_' + i + Math.random().toString(36).slice(2, 6),
+    name, type: spec.type || 'monster', size, charId: spec.charId || '',
+    img: spec.img || null, hidden: !!spec.hidden, x: spots[i].x, y: spots[i].y,
+  }));
+  mapState.tokens.push(...made);
+  mapState.dragging = null;
+  m.tokens = mapState.tokens;
+  save();
+  redrawMap();
+  renderTokenList();
+  return made;
+}
+
+function quickQty() { return +document.getElementById('quick-qty')?.value || 1; }
+function quickSize() { return +document.getElementById('new-token-size')?.value || 1; }
+function quickHidden() { return !!document.getElementById('quick-hidden')?.checked; }
+function setQuickQty(delta) {
+  const el = document.getElementById('quick-qty');
+  if (el) el.value = Math.max(1, Math.min(20, (+el.value || 1) + delta));
+}
+
+// One click: add N tokens of a kind (from the presets or the saved images)
+const TOKEN_PRESETS = [
+  { key: 'monster', label: '👹 Monster', name: 'Monster', type: 'monster' },
+  { key: 'guard',   label: '🛡 Guard',   name: 'Guard',   type: 'npc' },
+  { key: 'npc',     label: '🧑 NPC',     name: 'NPC',     type: 'npc' },
+  { key: 'beast',   label: '🐺 Beast',   name: 'Beast',   type: 'monster' },
+  { key: 'undead',  label: '💀 Undead',  name: 'Undead',  type: 'monster' },
+];
+function quickAddPreset(key) {
+  const p = TOKEN_PRESETS.find(x => x.key === key);
+  if (!p) return;
+  const made = placeTokens({ name: p.name, type: p.type, size: quickSize(), hidden: quickHidden() }, quickQty());
+  if (made.length) showLimitWarning(`Added ${made.length} ${p.name.toLowerCase()} token${made.length > 1 ? 's' : ''}. Drag them where you want them.`);
+}
+function quickAddLibrary(id) {
+  const entry = state.tokenLibrary.find(l => l.id === id);
+  if (!entry) return;
+  const ch = entry.charId && state.characters.find(c => c.id === entry.charId);
+  const made = placeTokens({ name: ch ? ch.name : entry.name, type: entry.type || (ch ? 'player' : 'monster'), img: entry.img,
+    size: quickSize(), charId: ch ? ch.id : '', hidden: quickHidden() }, ch ? 1 : quickQty());
+  if (made.length) showLimitWarning(`Added ${made.length} × ${made[0].name.replace(/ \d+$/, '')}.`);
+}
+
+function renderQuickTokens() {
+  const box = document.getElementById('quick-token-presets');
+  if (box) box.innerHTML = TOKEN_PRESETS.map(p =>
+    `<button class="quick-chip" onclick="quickAddPreset('${p.key}')" title="Add ${p.name.toLowerCase()} tokens">${p.label}</button>`).join('');
+}
+
+function generatePlayerTokens() {
+  const m = viewedMap();
+  if (!m) { showLimitWarning('Add a map first.'); return; }
+  const missing = state.characters.filter(ch => !mapState.tokens.some(t => t.charId === ch.id));
+  if (!missing.length) { showLimitWarning('All player characters already have tokens on this map.'); return; }
+  const spots = clusterPositions(missing.length, 1, viewCentreFrac());
+  missing.forEach((ch, i) => mapState.tokens.push({
+    id: 'tok_' + Date.now() + '_' + ch.id, name: ch.name, type: 'player', charId: ch.id, size: 1,
+    x: spots[i].x, y: spots[i].y, img: ch.portrait || null, hidden: false,
+  }));
+  m.tokens = mapState.tokens;
   save();
   redrawMap();
   renderTokenList();
 }
 
+// The detailed form: name, type, linked character, image, size and quantity
 function addToken() {
   const name = document.getElementById('new-token-name').value.trim() || 'Token';
   const type = document.getElementById('new-token-type').value;
   const charId = document.getElementById('new-token-char').value;
-  const size = +document.getElementById('new-token-size').value || 1;
-
-  // Place at canvas centre as fraction (0.5, 0.5)
-  const t = {
-    id: 'tok_' + Date.now(),
-    name, type, charId, size,
-    x: 0.5, y: 0.5,
-    img: pendingTokenImg || null,
-    hidden: false,
-  };
-
-  mapState.tokens.push(t);
-  // Ensure not dragging the new token
-  mapState.dragging = null;
-  // Sync tokens back to active map immediately before save
-  const activeMap = state.maps.find(m => m.id === state.activeMapId);
-  if (activeMap) activeMap.tokens = mapState.tokens;
+  placeTokens({ name, type, charId, size: quickSize(), img: pendingTokenImg || null, hidden: quickHidden() }, charId ? 1 : quickQty());
   pendingTokenImg = null;
   document.getElementById('new-token-name').value = '';
-  document.getElementById('new-token-size').value = '1';
   document.getElementById('token-img-input').value = '';
   hideTokenImgPreview();
   document.querySelectorAll('.lib-token-btn').forEach(b => b.style.outline = 'none');
-  save();
-  redrawMap();
-  renderTokenList();
+}
+
+function duplicateToken(id) {
+  const t = mapState.tokens.find(x => x.id === id);
+  if (!t) return;
+  const base = (t.name || 'Token').replace(/ \d+$/, '');
+  // A numbered original ("Goblin 2") makes "Goblin 3"; an unnumbered one becomes "Goblin 1" and the copy "Goblin 2"
+  if (!/ \d+$/.test(t.name || '') && !mapState.tokens.some(x => x !== t && x.name.startsWith(base + ' '))) t.name = base + ' 1';
+  const gs = gridPx(), r = mapRect();
+  const name = numberedNames(base, 1)[0]; // next free number after the existing ones
+  const copy = { ...t, id: 'tok_' + Date.now() + Math.random().toString(36).slice(2, 6), name, charId: t.type === 'player' ? '' : t.charId,
+    x: Math.min(1, t.x + (gs * (t.size || 1)) / r.w), y: t.y };
+  mapState.tokens.push(copy);
+  const m = viewedMap(); if (m) m.tokens = mapState.tokens;
+  save(); redrawMap(); renderTokenList();
 }
 
 // DM: grid on/off for everyone. Player: a view setting for this device only.
@@ -595,10 +782,6 @@ function effectiveShowGrid() {
 
 function redrawMap() {
   if (!canvas || !ctx) return;
-  if (state.currentUser?.isDM) {
-    const input = +document.getElementById('grid-size')?.value || 50;
-    if (input !== state.gridSize) { state.gridSize = input; save(); }
-  }
   const rect = mapRect();
   const gs = gridPx();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -733,29 +916,33 @@ function canMoveToken(t) {
   return false;
 }
 
+// Mouse and touch: drag a token you can move; drag empty space to pan;
+// wheel or pinch to zoom (zoom and pan are this device's own view)
+function canvasPoint(e) {
+  const r = canvas.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+
 function onMapMouseDown(e) {
-  // Only respond to clicks directly on the canvas
   if (e.target !== canvas) return;
-  const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left, y = e.clientY - rect.top;
-  // Ignore if outside canvas bounds
+  const { x, y } = canvasPoint(e);
   if (x < 0 || y < 0 || x > canvas.width || y > canvas.height) return;
   const t = getTokenAt(x, y);
   if (t && canMoveToken(t)) {
     mapState.dragging = t;
-    // Store offset in pixel space
     mapState.offsetX = x - tokX(t);
     mapState.offsetY = y - tokY(t);
     showTokenPopup(t, x, y);
   } else {
     hideTokenPopup();
     if (t) showTokenPopup(t, x, y);
+    mapState.panning = { x, y, panX: mapView.panX, panY: mapView.panY };
+    canvas.style.cursor = 'grabbing';
   }
 }
 
 function onMapMouseMove(e) {
-  const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left, y = e.clientY - rect.top;
+  const { x, y } = canvasPoint(e);
   if (mapState.dragging) {
     const gs = gridPx();
     const rect = mapRect();
@@ -768,6 +955,10 @@ function onMapMouseMove(e) {
     mapState.dragging.x = Math.min(1, Math.max(0, (snapX - rect.x) / rect.w));
     mapState.dragging.y = Math.min(1, Math.max(0, (snapY - rect.y) / rect.h));
     redrawMap();
+  } else if (mapState.panning) {
+    mapView.panX = mapState.panning.panX + (x - mapState.panning.x);
+    mapView.panY = mapState.panning.panY + (y - mapState.panning.y);
+    redrawMap();
   }
 }
 
@@ -777,30 +968,52 @@ function onMapMouseUp() {
     if (state.currentUser?.isDM) {
       save();
     } else {
-      // Player writes just their token position to tokenMoves
-      if (window.fbSaveTokenPos && state.campaignId && state.activeMapId) {
-        window.fbSaveTokenPos(state.campaignId, state.activeMapId, t.id, t.x, t.y);
+      // Players write only their token's position; the DM's screen folds it into the map
+      if (window.fbSaveTokenPos && state.campaignId && state.viewMapId) {
+        window.fbSaveTokenPos(state.campaignId, state.viewMapId, t.id, t.x, t.y);
       }
-      // Also update local map state
-      const active = state.maps.find(m => m.id === state.activeMapId);
-      if (active) active.tokens = mapState.tokens;
+      const m = viewedMap();
+      if (m) m.tokens = mapState.tokens;
       cacheLocally();
     }
   }
   mapState.dragging = null;
+  mapState.panning = null;
+  if (canvas) canvas.style.cursor = '';
 }
 
+let _pinch = null;
 function onTouchStart(e) {
   e.preventDefault();
+  if (e.touches.length === 2) {
+    // Two fingers: pinch to zoom (drop any drag or pan)
+    mapState.dragging = null; mapState.panning = null;
+    const [a, b] = e.touches;
+    _pinch = { d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) };
+    return;
+  }
   const t = e.touches[0];
-  const rect = canvas.getBoundingClientRect();
   onMapMouseDown({ clientX: t.clientX, clientY: t.clientY, target: canvas });
 }
 
 function onTouchMove(e) {
   e.preventDefault();
+  if (e.touches.length === 2 && _pinch) {
+    const [a, b] = e.touches;
+    const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    const mid = canvasPoint({ clientX: (a.clientX + b.clientX) / 2, clientY: (a.clientY + b.clientY) / 2 });
+    if (_pinch.d > 0) zoomMap(d / _pinch.d, mid.x, mid.y);
+    _pinch.d = d;
+    return;
+  }
   const t = e.touches[0];
   onMapMouseMove({ clientX: t.clientX, clientY: t.clientY });
+}
+
+function onTouchEnd(e) {
+  if (e.touches && e.touches.length) return; // a finger is still down
+  _pinch = null;
+  onMapMouseUp();
 }
 
 function showTokenPopup(t, x, y) {
@@ -839,8 +1052,9 @@ function renderTokenList() {
         <div class="token-name">${esc(t.name)}</div>
         <div class="token-type">${t.type}${t.size > 1 ? ' · ' + ['','','Large','Huge','Gargantuan'][t.size] : ''}${t.hidden ? ' · hidden' : ''}</div>
       </div>
-      ${isDM ? `<button class="token-toggle" onclick="toggleTokenVisibility('${t.id}')">${t.hidden ? '👁' : '🚫'}</button>
-        <button class="token-toggle" style="color:var(--blood)" onclick="removeToken('${t.id}')">✕</button>` : ''}
+      ${isDM ? `<button class="token-toggle" onclick="duplicateToken('${t.id}')" title="Add another like this">⧉</button>
+        <button class="token-toggle" onclick="toggleTokenVisibility('${t.id}')" title="${t.hidden ? 'Show to players' : 'Hide from players'}">${t.hidden ? '👁' : '🚫'}</button>
+        <button class="token-toggle" style="color:var(--blood)" onclick="removeToken('${t.id}')" title="Remove">✕</button>` : ''}
     </div>`;
   }).join('');
 }
@@ -849,7 +1063,7 @@ function toggleTokenVisibility(id) {
   const t = mapState.tokens.find(x => x.id === id);
   if (t) {
     t.hidden = !t.hidden;
-    const activeMap = state.maps.find(m => m.id === state.activeMapId);
+    const activeMap = state.maps.find(m => m.id === state.viewMapId);
     if (activeMap) activeMap.tokens = mapState.tokens;
       save(); redrawMap();
   }
@@ -857,7 +1071,7 @@ function toggleTokenVisibility(id) {
 
 function removeToken(id) {
   mapState.tokens = mapState.tokens.filter(x => x.id !== id);
-  const activeMap = state.maps.find(m => m.id === state.activeMapId);
+  const activeMap = state.maps.find(m => m.id === state.viewMapId);
   if (activeMap) activeMap.tokens = mapState.tokens;
   save(); redrawMap();
 }
