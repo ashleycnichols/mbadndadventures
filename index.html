@@ -15,6 +15,10 @@
   <div class="login-title">The Chronicler</div>
   <div class="login-subtitle">Campaign Management Platform</div>
   <div class="login-card">
+    <div class="input-group" id="campaign-group">
+      <label>Campaign</label>
+      <select class="parchment-input" id="campaign-select"><option value="">Loading campaigns…</option></select>
+    </div>
     <div class="role-buttons">
       <div class="role-btn active" id="role-player" onclick="selectRole('player')">
         <span class="role-icon">⚔️</span>
@@ -38,7 +42,8 @@
     <div id="login-error" class="error-msg hidden"></div>
     <button class="btn-primary btn-gold" id="enter-btn" onclick="enterApp()">Enter the Chronicle</button>
     <div style="font-size:0.75rem;color:var(--text-muted);text-align:center;margin-top:1rem;font-style:italic">
-      DMs can change the passphrase in Settings after logging in.
+      DMs can change their campaign's passphrase in Settings after logging in.<br>
+      <a href="#" onclick="openCreateCampaign();return false" style="color:var(--gold)">Create a new campaign</a>
     </div>
   </div>
 </div>
@@ -49,9 +54,11 @@
     <div class="top-bar-title">⚔ The Chronicler</div>
     <div class="nav-tabs">
       <button class="nav-tab active" onclick="showPanel('characters',this)">Characters</button>
-      <button class="nav-tab" onclick="showPanel('map',this)">Battle Map</button>
+      <button class="nav-tab" id="map-tab" onclick="showPanel('map',this)">Battle Map</button>
       <button class="nav-tab" id="party-tab" onclick="showPanel('party',this)" style="display:none">⚔ Party</button>
+      <button class="nav-tab" id="combat-tab" onclick="showPanel('combat',this)" style="display:none">🛡 Combat</button>
       <button class="nav-tab" id="sheet-tab" onclick="showPanel('sheet',this)" style="display:none">My Sheet</button>
+      <button class="nav-tab" id="quick-tab" onclick="showPanel('quick',this)" style="display:none">Quick View</button>
       <button class="nav-tab" id="settings-tab" onclick="showPanel('settings',this)">Settings</button>
     </div>
     <div style="display:flex;align-items:center;gap:0.75rem">
@@ -183,13 +190,37 @@
       <div id="party-content"></div>
     </div>
 
+    <!-- COMBAT VIEW (DM only): everyone at a glance -->
+    <div class="panel" id="panel-combat">
+      <div id="combat-content"></div>
+    </div>
+
+    <!-- QUICK VIEW (players, Roll20 campaigns): compact sheet to keep beside Roll20 -->
+    <div class="panel" id="panel-quick">
+      <div id="quick-content" style="max-width:440px;margin:0 auto;padding:0.75rem"></div>
+    </div>
+
     <!-- SETTINGS PANEL -->
     <div class="panel" id="panel-settings">
       <div class="char-sheet" style="max-width:500px">
         <div class="section-header">Settings</div>
+        <div class="dm-only">
+          <div class="sidebar-title">Campaign</div>
+          <div class="input-group">
+            <label class="form-label">Campaign name</label>
+            <input class="parchment-input" id="campaign-name-input" type="text">
+          </div>
+          <label style="display:flex;align-items:flex-start;gap:0.5rem;font-size:0.9rem;margin-bottom:0.75rem;cursor:pointer">
+            <input type="checkbox" id="campaign-roll20-toggle" style="margin-top:0.25rem">
+            <span><strong>Maps are in Roll20.</strong> <span style="color:var(--text-muted)">Hides the Battle Map for everyone. Players get a compact Quick View to keep beside Roll20.</span></span>
+          </label>
+          <button class="btn-primary btn-gold" style="width:auto;padding:0.6rem 1.4rem" onclick="saveCampaignSettings()">Save Campaign Settings</button>
+          <div id="campaign-settings-msg" style="margin-top:0.5rem;font-style:italic;font-size:0.85rem;color:var(--green-health);min-height:1.2em"></div>
+          <hr style="margin:1.5rem 0;border:none;border-top:1px solid var(--border)">
+        </div>
         <div id="dm-pass-settings-section" class="dm-only">
           <div class="input-group">
-            <label class="form-label">DM Passphrase (set / change)</label>
+            <label class="form-label">DM passphrase for this campaign (set / change)</label>
             <input class="parchment-input" id="new-dm-pass" type="password" placeholder="New passphrase...">
           </div>
           <div class="input-group">
@@ -242,9 +273,11 @@
 <script src="js/data.js"></script>
 <script src="js/state.js"></script>
 <script src="js/persistence.js"></script>
+<script src="js/campaigns.js"></script>
 <script src="js/login.js"></script>
 <script src="js/navigation.js"></script>
 <script src="js/party.js"></script>
+<script src="js/combat.js"></script>
 <script src="js/characters.js"></script>
 <script src="js/creator.js"></script>
 <script src="js/sheet.js"></script>

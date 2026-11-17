@@ -84,8 +84,13 @@ let _worldLoaded = false;    // first world snapshot received
 let _deletedIds = new Set(); // characters deleted here, until Firebase confirms
 let _lastMoves = {};         // latest tokenMoves snapshot
 
+// This device's copy of the campaign (shown if Firebase can't be reached)
+function cacheKey() {
+  return !state.campaignId || state.campaignId === LEGACY_CAMPAIGN ? 'chronicler_v2' : 'chronicler_v2_' + state.campaignId;
+}
+
 function cacheLocally() {
-  try { localStorage.setItem('chronicler_v2', JSON.stringify(buildSaveData())); }
+  try { localStorage.setItem(cacheKey(), JSON.stringify(buildSaveData())); }
   catch (e) { console.warn('Local cache full or unavailable:', e.message); }
 }
 
@@ -175,7 +180,7 @@ function applyData(d) {
 
 function load() {
   try {
-    const d = JSON.parse(localStorage.getItem('chronicler_v2') || '{}');
+    const d = JSON.parse(localStorage.getItem(cacheKey()) || '{}');
     applyData(d);
   } catch(e) { console.error(e); }
 }
@@ -330,7 +335,13 @@ function hashPass(p) {
 }
 
 let _usingDefaultPass = false;
-function checkDMPass(pass, meta) {
+const LEGACY_CAMPAIGN = 'trinitydnd'; // the original campaign keeps its old storage keys
+function localPassKey(campaignId) {
+  return campaignId === LEGACY_CAMPAIGN ? 'chronicler_dm_pass_hash' : 'chronicler_dm_pass_hash_' + campaignId;
+}
+
+// Check a DM passphrase for a campaign against Firebase (or, offline, this device)
+function checkDMPass(campaignId, pass, meta) {
   return hashPass(pass).then(h => {
     let ok;
     if (meta?.dmPassHash) {
@@ -338,29 +349,35 @@ function checkDMPass(pass, meta) {
     } else if (meta?.dmPass) {
       // Older plain-text passphrase: accept it once, then store only the hash
       ok = pass === meta.dmPass;
-      if (ok && window.fbSaveMeta) window.fbSaveMeta(window._hardcodedCampaignId + '_auth', { dmPassHash: h });
+      if (ok && window.fbSaveMeta) window.fbSaveMeta(campaignId + '_auth', { dmPassHash: h });
     } else {
-      // Nothing in Firebase (never set, or offline): this device's copy, else the default
-      const localHash = localStorage.getItem('chronicler_dm_pass_hash');
-      const legacy = localStorage.getItem('chronicler_dm_pass');
-      ok = localHash ? h === localHash : pass === (legacy || 'dm');
-      _usingDefaultPass = ok && !localHash && !legacy;
+      // Nothing in Firebase (offline, or the original campaign before a passphrase was set)
+      const localHash = localStorage.getItem(localPassKey(campaignId));
+      const legacy = campaignId === LEGACY_CAMPAIGN ? localStorage.getItem('chronicler_dm_pass') : null;
+      if (localHash) ok = h === localHash;
+      else if (campaignId === LEGACY_CAMPAIGN) { ok = pass === (legacy || 'dm'); _usingDefaultPass = ok && !legacy; }
+      else ok = false;
     }
     if (ok) {
-      localStorage.setItem('chronicler_dm_pass_hash', h);
+      localStorage.setItem(localPassKey(campaignId), h);
       localStorage.removeItem('chronicler_dm_pass');
     }
     return ok;
   });
 }
 
+// Fetch the campaign's passphrase record and check it; false if it can't be checked
+function verifyCampaignPass(campaignId, pass) {
+  const meta = window.fbFetchMeta ? window.fbFetchMeta(campaignId + '_auth').catch(() => null) : Promise.resolve(null);
+  return meta.then(m => checkDMPass(campaignId, pass, m));
+}
+
 function setDMPass(p) {
+  const campaignId = state.campaignId;
   return hashPass(p).then(h => {
-    localStorage.setItem('chronicler_dm_pass_hash', h);
+    localStorage.setItem(localPassKey(campaignId), h);
     localStorage.removeItem('chronicler_dm_pass');
     _usingDefaultPass = false;
-    if (window.fbSaveMeta && window._hardcodedCampaignId) {
-      return window.fbSaveMeta(window._hardcodedCampaignId + '_auth', { dmPassHash: h });
-    }
+    if (window.fbSaveMeta && campaignId) return window.fbSaveMeta(campaignId + '_auth', { dmPassHash: h });
   });
 }

@@ -9,36 +9,15 @@ let pendingTokenImg = null;
 // COMBAT SIDEBAR (player map panel)
 // ============================================================
 // The sidebar reuses the sheet's actions; refreshSheets() redraws the sidebar
-function mapAdjustHP(id, sign) { sheetAdjustHP(id, sign, 'map-hp-adjust'); }
 function mapToggleSlot(id, spellLevel, slotIndex) { toggleSlot(id, spellLevel, slotIndex); }
 function mapUseHitDie(id) { useHitDie(id); }
 function mapShortRest(id) { doShortRest(id); }
 function mapLongRest(id) { doLongRest(id); }
 function mapToggleDeathSave(id, type, index) { toggleDeathSave(id, type, index); }
 
-function renderCombatSidebar() {
-  const container = document.getElementById('combat-sidebar-content');
-  if (!container) return;
-
-  const c = myActiveChar();
-
-  if (!c) {
-    container.innerHTML = `<div style="padding:1rem;font-size:0.8rem;color:var(--text-muted);font-style:italic;font-family:'Crimson Pro',serif">
-      No character linked to <strong>${state.currentUser?.name}</strong>.<br>
-      <button onclick="showPanel('characters',this)" class="btn-secondary btn-sm" style="margin-top:0.75rem">Create Character</button>
-    </div>`;
-    return;
-  }
-
-  // Ensure fields
-  if (!c.usedSlots) c.usedSlots = {};
-  if (!c.tempHp) c.tempHp = 0;
-  if (!c.deathSaves) c.deathSaves = {success:0, fail:0};
-  if (!c.hitDiceUsed) c.hitDiceUsed = 0;
-  if (!Array.isArray(c.spells)) c.spells = [];
-  if (!Array.isArray(c.weapons)) c.weapons = [];
-  if (!c.stats) c.stats = {str:10,dex:10,con:10,int:10,wis:10,cha:10};
-  if (!c.conditions) c.conditions = [];
+// Compact character view: the map sidebar and the Quick View (for Roll20 campaigns)
+function compactSheetHTML(c, prefix) {
+  normalizeChar(c);
 
   const cls = CLASSES.find(cl => cl.id === c.class);
   const race = RACES.find(r => r.id === c.race);
@@ -92,9 +71,9 @@ function renderCombatSidebar() {
       <div style="height:100%;width:${hpPct}%;background:${hpColor};transition:width 0.3s"></div>
     </div>
     <div style="display:flex;align-items:center;gap:0.3rem;margin-bottom:0.4rem">
-      <input id="map-hp-adjust" type="number" min="1" placeholder="amt" style="width:52px;border:1px solid var(--border);background:var(--parchment);border-radius:2px;padding:0.3rem 0.4rem;font-family:'Cinzel',serif;font-size:0.8rem;color:var(--text-main);text-align:center">
-      <button onclick="mapAdjustHP('${c.id}',1)" style="flex:1;padding:0.3rem;background:rgba(45,106,45,0.15);border:1px solid var(--green-health);border-radius:2px;cursor:pointer;font-family:'Cinzel',serif;font-size:0.7rem;color:var(--green-health)">+ Heal</button>
-      <button onclick="mapAdjustHP('${c.id}',-1)" style="flex:1;padding:0.3rem;background:rgba(139,26,26,0.1);border:1px solid var(--blood);border-radius:2px;cursor:pointer;font-family:'Cinzel',serif;font-size:0.7rem;color:var(--blood)">− Dmg</button>
+      <input id="${prefix}-hp-adjust" type="number" min="1" placeholder="amt" style="width:52px;border:1px solid var(--border);background:var(--parchment);border-radius:2px;padding:0.3rem 0.4rem;font-family:'Cinzel',serif;font-size:0.8rem;color:var(--text-main);text-align:center">
+      <button onclick="sheetAdjustHP('${c.id}',1,'${prefix}-hp-adjust')" style="flex:1;padding:0.3rem;background:rgba(45,106,45,0.15);border:1px solid var(--green-health);border-radius:2px;cursor:pointer;font-family:'Cinzel',serif;font-size:0.7rem;color:var(--green-health)">+ Heal</button>
+      <button onclick="sheetAdjustHP('${c.id}',-1,'${prefix}-hp-adjust')" style="flex:1;padding:0.3rem;background:rgba(139,26,26,0.1);border:1px solid var(--blood);border-radius:2px;cursor:pointer;font-family:'Cinzel',serif;font-size:0.7rem;color:var(--blood)">− Dmg</button>
     </div>
     ${isDying ? `<div style="margin-bottom:0.4rem">
       <div style="${label};color:var(--blood)">Death Saves</div>
@@ -111,6 +90,8 @@ function renderCombatSidebar() {
       <button onclick="mapUseHitDie('${c.id}')" style="flex:1;padding:0.25rem 0.3rem;background:none;border:1px solid var(--border);border-radius:2px;cursor:pointer;font-family:'Cinzel',serif;font-size:0.6rem;color:var(--text-muted);white-space:nowrap" title="Use Hit Die">🎲 d${cls?.hd||8}</button>
     </div>
   </div>`;
+
+  html += `<div style="${sec};padding-top:0">${concentrationControl(c)}</div>`;
 
   // ── Quick stats ──
   const qStats = [
@@ -216,16 +197,28 @@ function renderCombatSidebar() {
     </div>`;
   }
 
-  // ── Grid toggle at bottom ──
-  html += `<div style="padding:0.75rem;display:flex;align-items:center;gap:0.4rem">
-    <input type="checkbox" id="grid-toggle-player" onchange="toggleGrid(this)" ${effectiveShowGrid() ? 'checked' : ''} style="cursor:pointer">
-    <label for="grid-toggle-player" style="font-family:'Cinzel',serif;font-size:0.7rem;color:var(--text-muted);cursor:pointer">Show Grid</label>
-  </div>`;
-
-  container.innerHTML = html;
+  return html;
 }
 
 // Convert fractional token position to canvas pixels
+
+function renderCombatSidebar() {
+  const container = document.getElementById('combat-sidebar-content');
+  if (!container) return;
+  const c = myActiveChar();
+  if (!c) {
+    container.innerHTML = `<div style="padding:1rem;font-size:0.8rem;color:var(--text-muted);font-style:italic;font-family:'Crimson Pro',serif">
+      No character linked to <strong>${esc(state.currentUser?.name)}</strong>.<br>
+      <button onclick="showPanel('characters',this)" class="btn-secondary btn-sm" style="margin-top:0.75rem">Create Character</button>
+    </div>`;
+    return;
+  }
+  container.innerHTML = compactSheetHTML(c, 'map') + `<div style="padding:0.75rem;display:flex;align-items:center;gap:0.4rem">
+    <input type="checkbox" id="grid-toggle-player" onchange="toggleGrid(this)" ${effectiveShowGrid() ? 'checked' : ''} style="cursor:pointer">
+    <label for="grid-toggle-player" style="font-family:'Cinzel',serif;font-size:0.7rem;color:var(--text-muted);cursor:pointer">Show Grid</label>
+  </div>`;
+}
+
 // Token positions are stored as fractions (0 to 1) of the map image, so they
 // land on the same spot on every screen. The image is fitted inside the canvas
 // without stretching; the grid is measured in map-image pixels.
@@ -790,7 +783,7 @@ function onMapMouseUp() {
       // Also update local map state
       const active = state.maps.find(m => m.id === state.activeMapId);
       if (active) active.tokens = mapState.tokens;
-      localStorage.setItem('chronicler_v2', JSON.stringify(buildSaveData()));
+      cacheLocally();
     }
   }
   mapState.dragging = null;

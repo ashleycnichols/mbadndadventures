@@ -87,7 +87,7 @@ function renderDMSheet(charId) {
   const backBtn = `<div style="max-width:900px;margin:0 auto;padding:1rem 1rem 0">
     <button class="btn-secondary btn-sm" onclick="backToPartyOverview()" style="margin-bottom:0.75rem">← Back to Party</button>
   </div>`;
-  container.innerHTML = backBtn + renderSheet(c);
+  container.innerHTML = backBtn + dmNoteBlock(c) + renderSheet(c);
 }
 
 function backToPartyOverview() {

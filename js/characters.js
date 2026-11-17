@@ -65,6 +65,7 @@ function deleteCharacter(id) {
   renderCharacters();
   if (state.syncEnabled && state.campaignId && window.fbDeleteCharacter) {
     window.fbDeleteCharacter(state.campaignId, id);
+    if (state.dmNotes?.[id]) saveDMNote(id, '');
   }
 }
 

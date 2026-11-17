@@ -25,6 +25,10 @@ function whenFirebaseReady(fn, limitMs) {
 function enterApp() {
   const err = document.getElementById('login-error');
   err.classList.add('hidden');
+  const campaignId = selectedCampaignId();
+  if (!campaignId) { err.textContent = 'Choose a campaign.'; err.classList.remove('hidden'); return; }
+  state.campaignId = campaignId;
+  localStorage.setItem('chronicler_last_campaign', campaignId);
 
   if (selectedRole === 'dm') {
     const pass = document.getElementById('dm-pass-input').value;
@@ -42,10 +46,8 @@ function enterApp() {
     };
     // Firebase holds the authoritative passphrase; fall back to this device if it can't be reached
     whenFirebaseReady(ready => {
-      const meta = ready && window.fbFetchMeta
-        ? window.fbFetchMeta(window._hardcodedCampaignId + '_auth').catch(() => null)
-        : Promise.resolve(null);
-      meta.then(m => checkDMPass(pass, m)).then(ok => ok ? succeed() : fail());
+      (ready ? verifyCampaignPass(campaignId, pass) : checkDMPass(campaignId, pass, null))
+        .then(ok => ok ? succeed() : fail());
     }, 5000);
     return;
   }
@@ -73,13 +75,15 @@ function _launchApp() {
   document.getElementById('sheet-tab').style.display = isDM ? 'none' : 'block';
   document.getElementById('party-tab').style.display = isDM ? 'block' : 'none';
   document.querySelectorAll('.dm-only').forEach(el => { el.style.display = isDM ? '' : 'none'; });
+  document.getElementById('combat-tab').style.display = isDM ? 'block' : 'none';
+  campaignInfo = { name: campaignName(state.campaignId) };
+  applyCampaignInfo();
 
   initMap();
   renderCharacters();
   renderMapTabs();
   updateSyncStatus('connecting');
 
-  // Everyone joins the one hardcoded campaign
   whenFirebaseReady(ready => {
     if (!ready) {
       // Firebase didn't load (offline or blocked): show this device's cached copy
@@ -90,10 +94,11 @@ function _launchApp() {
       updateSyncStatus('error');
       return;
     }
-    const campaignId = window._hardcodedCampaignId || 'trinitydnd';
-    state.campaignId = campaignId;
+    const campaignId = state.campaignId;
     state.syncEnabled = true;
     window.fbListen(campaignId, onRemoteChars, onRemoteWorld, onRemoteTokenMove);
+    listenCampaignInfo(campaignId);
+    if (isDM) listenDMNotes(campaignId);
     updateSyncStatus('connected');
 
     // If Firebase is slow to send data, show the cached copy meanwhile.
@@ -111,3 +116,6 @@ function logout() {
   // Give Firebase a moment to send, then reload
   setTimeout(() => location.reload(), 1000);
 }
+
+// Fill the campaign list as soon as the login screen shows
+document.addEventListener('DOMContentLoaded', () => renderCampaignPicker());

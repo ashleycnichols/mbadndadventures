@@ -42,6 +42,8 @@ function refreshSheets(opts = {}) {
   if (typing) return;
   if (isActive('panel-sheet')) renderMySheet();
   if (isActive('panel-party')) state.dmPartyCharId ? renderDMSheet(state.dmPartyCharId) : renderPartyPanel();
+  if (isActive('panel-quick')) renderQuickView();
+  if (isActive('panel-combat')) renderCombatView();
 }
 
 function renderMySheet() {
@@ -249,6 +251,7 @@ function renderSheet(c) {
             <option value="">+ Add condition…</option>
             ${CONDITIONS.map(cond => `<option value="${cond}">${cond}</option>`).join('')}
           </select>
+          ${concentrationControl(c)}
           <div style="margin-top:0.5rem">
             <span style="font-size:0.8rem;color:var(--text-muted)">Exhaustion: </span>
             ${[1,2,3,4,5,6].map(i => `<button onclick="setExhaustion('${c.id}',${i===c.exhaustion?i-1:i})" style="width:20px;height:20px;border-radius:50%;border:1px solid var(--border);background:${i<=c.exhaustion?'var(--blood)':'transparent'};font-size:0.6rem;cursor:pointer;margin-left:2px" title="Level ${i}">${i}</button>`).join('')}
@@ -379,6 +382,14 @@ function applyHpChange(c, sign, amt) {
     const absorbed = Math.min(c.tempHp || 0, amt);
     c.tempHp = (c.tempHp || 0) - absorbed;
     c.currentHp = Math.max(0, c.currentHp - (amt - absorbed));
+    if (c.concentration) {
+      if (c.currentHp <= 0) {
+        showLimitWarning(`${c.name || 'Character'} is down: concentration on ${concentrationName(c)} ends.`);
+        delete c.concentration;
+      } else {
+        showLimitWarning(`${c.name || 'Character'}: Constitution save DC ${Math.max(10, Math.floor(amt / 2))} to keep concentrating on ${concentrationName(c)}.`);
+      }
+    }
   } else {
     const wasDown = c.currentHp <= 0;
     c.currentHp = Math.min(c.maxHp, c.currentHp + amt);
@@ -590,6 +601,7 @@ function doLongRest(id) {
   c.usedSlots = {};
   c.hitDiceUsed = Math.max(0, (c.hitDiceUsed||0) - Math.max(1, Math.floor(c.level/2)));
   c.deathSaves = {success:0, fail:0};
+  delete c.concentration;
   const hadExhaustion = c.exhaustion > 0;
   if (hadExhaustion) c.exhaustion -= 1;
   showLimitWarning('Long rest complete! HP and spell slots restored' + (hadExhaustion ? ', exhaustion reduced by 1.' : '.'));

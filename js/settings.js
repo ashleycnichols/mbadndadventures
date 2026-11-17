@@ -20,13 +20,15 @@ function exportData() {
   const data = {
     version: 2,
     exportedAt: new Date().toISOString(),
+    campaign: { id: state.campaignId, name: campaignInfo?.name },
     characters: buildCharactersKeyed(),
     world: buildWorldData(),
+    dmNotes: state.dmNotes || {},
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'chronicler-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+  a.download = 'chronicler-' + slugify(campaignInfo?.name || state.campaignId) + '-backup-' + new Date().toISOString().slice(0, 10) + '.json';
   a.click();
 }
 
@@ -38,12 +40,13 @@ function importData(evt) {
   const reader = new FileReader();
   reader.onload = e => {
     input.value = '';
-    let chars, world;
+    let chars, world, notes = null;
     try {
       const d = JSON.parse(e.target.result);
       if (d.version === 2) {
         chars = Object.values(d.characters || {});
         world = d.world || {};
+        notes = d.dmNotes || {};
       } else {
         // Older single-map export
         chars = Array.isArray(d.characters) ? d.characters : Object.values(d.characters || {});
@@ -55,7 +58,7 @@ function importData(evt) {
       }
     } catch(err) { alert('That file isn\'t a Chronicler backup: ' + err.message); return; }
     const mapCount = (Array.isArray(world.maps) ? world.maps : Object.values(world.maps || {})).length;
-    if (!confirm(`Replace the whole campaign for everyone with this backup?\n\n${chars.length} characters, ${mapCount} maps.\n\nThis cannot be undone. Export a backup first if you might want the current state back.`)) return;
+    if (!confirm(`Replace the whole "${campaignInfo?.name || state.campaignId}" campaign for everyone with this backup?\n\n${chars.length} characters, ${mapCount} maps.\n\nThis cannot be undone. Export a backup first if you might want the current state back.`)) return;
 
     const keep = new Set(chars.map(c => c.id));
     state.characters.forEach(c => {
@@ -67,6 +70,10 @@ function importData(evt) {
     state.characters = chars.filter(c => c && c.id).map(normalizeChar);
     applyWorld(world);
     saveNow();
+    if (notes) {
+      state.dmNotes = notes;
+      if (state.syncEnabled && window.fbSet) window.fbSet('campaigns/' + state.campaignId + '/dmNotes', Object.keys(notes).length ? notes : null);
+    }
     _rerender();
     showLimitWarning('Backup restored for everyone.');
   };

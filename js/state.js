@@ -13,6 +13,7 @@ let state = {
   campaignId: null,
   syncEnabled: false,
   dmPartyCharId: null, // which char the DM is viewing in party panel
+  dmNotes: {},         // DM-only notes by character id (DM screens only)
 };
 
 let creatorState = {

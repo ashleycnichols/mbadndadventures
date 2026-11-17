@@ -13,6 +13,8 @@ function showPanel(id, callerEl) {
   if (navEl) navEl.classList.add('active');
   if (id === 'map') { setTimeout(redrawMap, 50); if (!state.currentUser?.isDM) renderCombatSidebar(); }
   if (id === 'sheet') { renderMySheet(); }
+  if (id === 'quick') { renderQuickView(); }
+  if (id === 'combat') { renderCombatView(); }
   if (id === 'party') {
     if (state.dmPartyCharId) renderDMSheet(state.dmPartyCharId);
     else renderPartyPanel();
