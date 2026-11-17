@@ -257,6 +257,9 @@ function renderSheet(c) {
             ${[1,2,3,4,5,6].map(i => `<button onclick="setExhaustion('${c.id}',${i===c.exhaustion?i-1:i})" style="width:20px;height:20px;border-radius:50%;border:1px solid var(--border);background:${i<=c.exhaustion?'var(--blood)':'transparent'};font-size:0.72rem;cursor:pointer;margin-left:2px" title="Level ${i}">${i}</button>`).join('')}
           </div>
         </div>
+
+        <!-- RACIAL TRAITS (left column, so it's close at hand) -->
+        ${racialTraitsBlock(c)}
       </div>
 
       <!-- RIGHT COLUMN -->
@@ -358,9 +361,6 @@ function renderSheet(c) {
             <button onclick="saveInventoryBtn('${c.id}')" class="btn-primary btn-gold btn-sm" style="width:auto;padding:0.35rem 1rem">💾 Save Inventory</button>
           </div>
         </div>
-
-        <!-- RACIAL TRAITS -->
-        ${racialTraitsBlock(c)}
 
         <!-- BACKSTORY & NOTES -->
         ${c.backstory || c.notes ? `
