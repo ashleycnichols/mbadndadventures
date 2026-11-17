@@ -47,7 +47,6 @@ function renderCombatSidebar() {
   const hpPct = Math.max(0, Math.round(c.currentHp / c.maxHp * 100));
   const hpColor = hpPct > 60 ? 'var(--green-health)' : hpPct > 25 ? '#8b6914' : 'var(--blood)';
   const initMod = getMod('dex');
-  const acMod = getMod('dex'); // rough proxy — no armour calc
   const spellMod = cls?.statHp ? getMod(cls.statHp) : 0;
   const spellDC = 8 + profBonus + spellMod;
   const spellAtk = profBonus + spellMod;
@@ -115,9 +114,10 @@ function renderCombatSidebar() {
 
   // ── Quick stats ──
   const qStats = [
+    ['AC', calcAC(c)],
     ['Prof', '+'+profBonus],
     ['Init', (initMod>=0?'+':'')+initMod],
-    ['Perc', 10+getMod('wis')],
+    ['Perc', passivePerception(c)],
   ];
   if (cls?.spellcaster) {
     qStats.push(['DC', spellDC]);
@@ -150,13 +150,10 @@ function renderCombatSidebar() {
     html += `<div style="${sec}">
       <div style="${label}">Attacks</div>
       ${weaponObjs.map(w => {
-        const isFinesse = w.id === 'rapier' || w.id === 'shortsword' || w.id === 'dagger' || w.id === 'whip';
-        const isRanged = w.range === 'Ranged';
-        const atkStat = isFinesse || isRanged ? 'dex' : 'str';
-        const atkMod = getMod(atkStat) + profBonus;
+        const wa = weaponAttack(c, w);
         return `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.25rem 0;border-bottom:1px solid rgba(0,0,0,0.05);font-size:0.72rem">
-          <span style="color:var(--text-main);font-family:'Cinzel',serif;font-size:0.68rem">${w.name}</span>
-          <span style="color:var(--gold);font-family:'Cinzel',serif">${atkMod>=0?'+':''}${atkMod} · ${w.dmg}</span>
+          <span style="color:var(--text-main);font-family:'Cinzel',serif;font-size:0.68rem">${w.name}${wa.proficient ? '' : ' ⚠'}</span>
+          <span style="color:var(--gold);font-family:'Cinzel',serif">${fmtMod(wa.atk)} · ${wa.dmg}</span>
         </div>`;
       }).join('')}
     </div>`;
@@ -187,7 +184,7 @@ function renderCombatSidebar() {
     html += `<div style="${sec}">
       <div style="${label}">Cantrips</div>
       <div style="display:flex;flex-wrap:wrap;gap:0.25rem">
-        ${cantrips.map(sp => `<span onclick="showSheetSpellDetail('${sp.id}')" style="font-size:0.68rem;font-family:'Cinzel',serif;background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:0.15rem 0.35rem;cursor:pointer;color:var(--text-muted)" title="${esc(sp.name)}">${esc(sp.name)}</span>`).join('')}
+        ${cantrips.map(sp => `<span onclick="showSheetSpellDetail('${sp.id}','${c.id}')" style="font-size:0.68rem;font-family:'Cinzel',serif;background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:0.15rem 0.35rem;cursor:pointer;color:var(--text-muted)" title="${esc(sp.name)}">${esc(sp.name)}</span>`).join('')}
       </div>
     </div>`;
   }
@@ -202,7 +199,7 @@ function renderCombatSidebar() {
         `<div style="margin-bottom:0.3rem">
           <div style="font-size:0.58rem;font-family:'Cinzel',serif;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.15rem">Level ${lvl}</div>
           <div style="display:flex;flex-wrap:wrap;gap:0.2rem">
-            ${spells.map(sp => `<span onclick="showSheetSpellDetail('${sp.id}')" style="font-size:0.65rem;font-family:'Cinzel',serif;background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:0.12rem 0.3rem;cursor:pointer;color:var(--text-muted)">${esc(sp.name)}</span>`).join('')}
+            ${spells.map(sp => `<span onclick="showSheetSpellDetail('${sp.id}','${c.id}')" style="font-size:0.65rem;font-family:'Cinzel',serif;background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:0.12rem 0.3rem;cursor:pointer;color:var(--text-muted)">${esc(sp.name)}</span>`).join('')}
           </div>
         </div>`
       ).join('')}
@@ -229,7 +226,20 @@ function renderCombatSidebar() {
 }
 
 // Convert fractional token position to canvas pixels
-function tokToCanvas(frac, dim) { return frac * dim; }
+// Token positions are stored as fractions (0 to 1) of the map image, so they
+// land on the same spot on every screen. The image is fitted inside the canvas
+// without stretching; the grid is measured in map-image pixels.
+function mapRect() {
+  if (canvas && mapImage && mapImage.naturalWidth) {
+    const scale = Math.min(canvas.width / mapImage.naturalWidth, canvas.height / mapImage.naturalHeight);
+    const w = mapImage.naturalWidth * scale, h = mapImage.naturalHeight * scale;
+    return { x: (canvas.width - w) / 2, y: (canvas.height - h) / 2, w, h, scale };
+  }
+  return { x: 0, y: 0, w: canvas?.width || 1, h: canvas?.height || 1, scale: 1 };
+}
+function gridPx() { return (state.gridSize || 50) * mapRect().scale; }
+function tokX(t) { const r = mapRect(); return r.x + t.x * r.w; }
+function tokY(t) { const r = mapRect(); return r.y + t.y * r.h; }
 // Convert canvas pixels to fractional position
 function canvasToTok(px, dim) { return dim > 0 ? px / dim : 0; }
 // Migrate old pixel coords to fractions (called when loading tokens)
@@ -324,7 +334,7 @@ function renderMapTabs() {
   state.maps.forEach(m => {
     const isActive = m.id === state.activeMapId;
     html += `<div style="display:flex;align-items:center;gap:0;background:${isActive?'var(--parchment)':'transparent'};border:1px solid ${isActive?'var(--gold)':'var(--border)'};border-radius:2px;overflow:hidden">
-      <button onclick="switchMap('${m.id}')" style="background:none;border:none;cursor:pointer;padding:0.3rem 0.75rem;font-family:'Cinzel',serif;font-size:0.8rem;color:${isActive?'var(--gold)':'var(--text-muted)'};white-space:nowrap">${m.name}${m.img ? '' : ' <span style="opacity:0.5;font-size:0.7rem">(no image)</span>'}</button>
+      <button onclick="switchMap('${m.id}')" style="background:none;border:none;cursor:pointer;padding:0.3rem 0.75rem;font-family:'Cinzel',serif;font-size:0.8rem;color:${isActive?'var(--gold)':'var(--text-muted)'};white-space:nowrap">${esc(m.name)}${m.img ? '' : ' <span style="opacity:0.5;font-size:0.7rem">(no image)</span>'}</button>
       ${state.maps.length > 1 ? `<button onclick="deleteMap('${m.id}')" style="background:none;border:none;border-left:1px solid var(--border);cursor:pointer;padding:0.3rem 0.4rem;color:var(--text-muted);font-size:0.8rem;line-height:1" title="Delete map">✕</button>` : ''}
     </div>`;
   });
@@ -453,8 +463,9 @@ function selectLibraryToken(id) {
 }
 
 function deleteLibraryToken(id) {
+  const removed = state.tokenLibrary.find(l => l.id === id);
   state.tokenLibrary = state.tokenLibrary.filter(l => l.id !== id);
-  if (pendingTokenImg === state.tokenLibrary.find(l => l.id === id)?.img) {
+  if (removed && pendingTokenImg === removed.img) {
     pendingTokenImg = null;
     hideTokenImgPreview();
   }
@@ -591,32 +602,35 @@ function effectiveShowGrid() {
 
 function redrawMap() {
   if (!canvas || !ctx) return;
-  const gs = +document.getElementById('grid-size')?.value || 50;
-  if (gs !== state.gridSize) { state.gridSize = gs; save(); }
-  else { state.gridSize = gs; }
+  if (state.currentUser?.isDM) {
+    const input = +document.getElementById('grid-size')?.value || 50;
+    if (input !== state.gridSize) { state.gridSize = input; save(); }
+  }
+  const rect = mapRect();
+  const gs = gridPx();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Background
+  // Background, then the map fitted without stretching
+  ctx.fillStyle = '#1a1009';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
   if (mapImage) {
-    ctx.drawImage(mapImage, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(mapImage, rect.x, rect.y, rect.w, rect.h);
   } else {
-    ctx.fillStyle = '#1a1009';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#3d2b0e';
     ctx.font = '16px Cinzel, serif';
     ctx.textAlign = 'center';
     ctx.fillText('Upload a map image to begin', canvas.width/2, canvas.height/2);
   }
 
-  // Grid
-  if (effectiveShowGrid()) {
+  // Grid, over the map area only
+  if (effectiveShowGrid() && gs >= 4) {
     ctx.strokeStyle = 'rgba(201,148,42,0.3)';
     ctx.lineWidth = 1;
-    for (let x = 0; x < canvas.width; x += gs) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+    for (let x = rect.x; x <= rect.x + rect.w + 0.5; x += gs) {
+      ctx.beginPath(); ctx.moveTo(x, rect.y); ctx.lineTo(x, rect.y + rect.h); ctx.stroke();
     }
-    for (let y = 0; y < canvas.height; y += gs) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+    for (let y = rect.y; y <= rect.y + rect.h + 0.5; y += gs) {
+      ctx.beginPath(); ctx.moveTo(rect.x, y); ctx.lineTo(rect.x + rect.w, y); ctx.stroke();
     }
   }
 
@@ -633,8 +647,8 @@ function drawToken(t, gs) {
   const sz = t.size || 1;
   const r = sz === 1 ? gs * 0.42 : (sz * gs) / 2 - gs * 0.08;
   // Convert fractional position to canvas pixels for drawing
-  const cx = tokToCanvas(t.x, canvas.width);
-  const cy = tokToCanvas(t.y, canvas.height);
+  const cx = tokX(t);
+  const cy = tokY(t);
 
   if (t.hidden) {
     ctx.globalAlpha = 0.45;
@@ -701,15 +715,15 @@ function drawToken(t, gs) {
 const tokenImgCache = {};
 
 function getTokenAt(x, y) {
-  const gs = state.gridSize;
+  const gs = gridPx();
   for (let i = mapState.tokens.length - 1; i >= 0; i--) {
     const t = mapState.tokens[i];
     if (t.hidden && !state.currentUser.isDM) continue;
     const sz = t.size || 1;
     const r = sz === 1 ? gs * 0.42 : (sz * gs) / 2 - gs * 0.08;
     // Compare in pixel space
-    const tx = tokToCanvas(t.x, canvas.width);
-    const ty = tokToCanvas(t.y, canvas.height);
+    const tx = tokX(t);
+    const ty = tokY(t);
     const dx = x - tx, dy = y - ty;
     if (dx*dx + dy*dy <= r*r) return t;
   }
@@ -736,8 +750,8 @@ function onMapMouseDown(e) {
   if (t && canMoveToken(t)) {
     mapState.dragging = t;
     // Store offset in pixel space
-    mapState.offsetX = x - tokToCanvas(t.x, canvas.width);
-    mapState.offsetY = y - tokToCanvas(t.y, canvas.height);
+    mapState.offsetX = x - tokX(t);
+    mapState.offsetY = y - tokY(t);
     showTokenPopup(t, x, y);
   } else {
     hideTokenPopup();
@@ -749,13 +763,16 @@ function onMapMouseMove(e) {
   const rect = canvas.getBoundingClientRect();
   const x = e.clientX - rect.left, y = e.clientY - rect.top;
   if (mapState.dragging) {
-    const gs = state.gridSize;
+    const gs = gridPx();
+    const rect = mapRect();
     const sz = mapState.dragging.size || 1;
-    // Snap in pixel space, then store as fractions
-    const snapX = Math.floor((x - mapState.offsetX) / gs) * gs + (sz * gs) / 2;
-    const snapY = Math.floor((y - mapState.offsetY) / gs) * gs + (sz * gs) / 2;
-    mapState.dragging.x = canvasToTok(snapX, canvas.width);
-    mapState.dragging.y = canvasToTok(snapY, canvas.height);
+    // Snap to the grid (measured from the map's corner), then store as fractions of the map
+    const cellX = Math.floor((x - mapState.offsetX - rect.x) / gs);
+    const cellY = Math.floor((y - mapState.offsetY - rect.y) / gs);
+    const snapX = rect.x + cellX * gs + (sz * gs) / 2;
+    const snapY = rect.y + cellY * gs + (sz * gs) / 2;
+    mapState.dragging.x = Math.min(1, Math.max(0, (snapX - rect.x) / rect.w));
+    mapState.dragging.y = Math.min(1, Math.max(0, (snapY - rect.y) / rect.h));
     redrawMap();
   }
 }

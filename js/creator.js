@@ -127,8 +127,12 @@ function renderCreatorStep() {
       const stats = ['str','dex','con','int','wis','cha'];
       const labels = {str:'Strength',dex:'Dexterity',con:'Constitution',int:'Intelligence',wis:'Wisdom',cha:'Charisma'};
       const clsObj4 = CLASSES.find(c => c.id === d.class);
-      const previewHp = calcMaxHp(d.class, d.level, d.stats);
-      html = `<p style="font-style:italic;color:var(--text-muted);margin-bottom:1rem;font-size:0.9rem">Enter your ability scores. Click "Roll" to randomly assign scores.</p>
+      const isNew = !creatorState.editingId;
+      const rb = isNew ? racialBonus(d.race) : {};
+      const previewHp = calcMaxHp(d.class, d.level, isNew ? addRacialBonus(d.stats, d.race) : d.stats);
+      html = `<p style="font-style:italic;color:var(--text-muted);margin-bottom:1rem;font-size:0.9rem">${isNew
+          ? `Enter your base ability scores, or click "Roll". Your ${esc(getRace(d.race))} bonuses are added automatically when you save.`
+          : 'These are the final scores, including racial bonuses.'}</p>
         <div style="text-align:right;margin-bottom:1rem"><button class="btn-secondary btn-sm" onclick="rollStats()">🎲 Roll 4d6 Drop Lowest</button></div>
         <div class="stat-grid">${stats.map(s => {
           const val = d.stats[s];
@@ -137,6 +141,7 @@ function renderCreatorStep() {
             <div class="stat-name">${labels[s]}</div>
             <input type="number" id="stat-${s}" min="1" max="30" value="${val}" oninput="updateStatMod('${s}');updateHpPreview()" style="width:100%;text-align:center;background:transparent;border:none;outline:none;font-family:'Cinzel Decorative',serif;font-size:1.8rem;color:var(--text-main)">
             <div class="stat-mod" id="mod-${s}">${mod >= 0 ? '+' : ''}${mod}</div>
+            ${rb[s] ? `<div style="font-size:0.7rem;color:var(--green-health);font-family:'Cinzel',serif">+${rb[s]} race → ${val + rb[s]}</div>` : ''}
           </div>`;
         }).join('')}</div>
         <div id="hp-preview" style="margin-top:1.5rem;background:var(--parchment-dark);border:1px solid var(--parchment-deeper);border-left:4px solid var(--gold);border-radius:2px;padding:1rem;font-family:'Cinzel',serif;font-size:0.85rem">
@@ -149,7 +154,7 @@ function renderCreatorStep() {
     case 5: { // Spells & Weapons
       const cls = CLASSES.find(c => c.id === d.class);
       const isSpellcaster = cls?.spellcaster;
-      const spellLimits = isSpellcaster ? getSpellLimits(d.class, d.level, d.stats) : null;
+      const spellLimits = isSpellcaster ? getSpellLimits(d.class, d.level, creatorFinalStats(d)) : null;
 
       // Determine highest spell slot level available at this character level
       // slots array: index 0 = 1st-level slots, index 1 = 2nd-level slots, etc.
@@ -274,9 +279,15 @@ function updateHpPreview() {
     const v = +document.getElementById('stat-'+s)?.value;
     if (v) creatorState.draft.stats[s] = v;
   });
-  const hp = calcMaxHp(creatorState.draft.class, creatorState.draft.level, creatorState.draft.stats);
+  const d = creatorState.draft;
+  const hp = calcMaxHp(d.class, d.level, creatorState.editingId ? d.stats : addRacialBonus(d.stats, d.race));
   const el = document.getElementById('hp-preview-val');
   if (el) el.textContent = hp;
+}
+
+// Scores as they'll be saved: new characters get their racial bonus added on save
+function creatorFinalStats(d) {
+  return creatorState.editingId ? d.stats : addRacialBonus(d.stats, d.race);
 }
 
 function calcMaxHp(classId, level, stats) {
@@ -321,7 +332,7 @@ function updateSpellCounts() {
   const d = creatorState.draft;
   const selCantrips = d.spells.filter(id => (SPELLS.find(s=>s.id===id)?.level||0)===0).length;
   const selLeveled = d.spells.filter(id => (SPELLS.find(s=>s.id===id)?.level||0) > 0).length;
-  const limits = getSpellLimits(d.class, d.level, d.stats);
+  const limits = getSpellLimits(d.class, d.level, creatorFinalStats(d));
   const cc = document.getElementById('cantrip-count');
   const kc = document.getElementById('known-count');
   if (cc && limits) { cc.textContent = selCantrips; cc.style.color = selCantrips > limits.cantrips ? 'var(--blood)' : 'var(--green-health)'; }
@@ -346,7 +357,7 @@ function rollStats() {
 function toggleSpell(id, el, spellLevel) {
   const cb = el.querySelector('input[type="checkbox"]');
   const d = creatorState.draft;
-  const limits = getSpellLimits(d.class, d.level, d.stats);
+  const limits = getSpellLimits(d.class, d.level, creatorFinalStats(d));
   const isSelected = d.spells.includes(id);
 
   if (isSelected) {
@@ -459,16 +470,16 @@ function saveCreatorFields() {
     });
     // New characters: HP from class hit die + CON. Edits keep their HP (see saveCharacter).
     if (!creatorState.editingId) {
-      const hp = calcMaxHp(d.class, d.level, d.stats);
+      const hp = calcMaxHp(d.class, d.level, addRacialBonus(d.stats, d.race));
       d.maxHp = hp;
       d.currentHp = hp;
     }
   }
   if (step === 6) {
-    d.backstory = document.getElementById('f-backstory')?.value || d.backstory;
-    d.notes = document.getElementById('f-notes')?.value || d.notes;
+    d.backstory = document.getElementById('f-backstory')?.value ?? d.backstory;
+    d.notes = document.getElementById('f-notes')?.value ?? d.notes;
     if (!creatorState.editingId) {
-      const hp = calcMaxHp(d.class, d.level, d.stats);
+      const hp = calcMaxHp(d.class, d.level, addRacialBonus(d.stats, d.race));
       d.maxHp = hp;
       d.currentHp = hp;
     }
@@ -491,6 +502,10 @@ function saveCharacter() {
     const o = creatorState.original;
     result = JSON.parse(JSON.stringify(live));
     CREATOR_FIELDS.forEach(k => { result[k] = JSON.parse(JSON.stringify(d[k] ?? null)); });
+    // Race changed: swap the old race's bonus for the new one's
+    if (result.racialApplied && result.race !== o.race) {
+      result.stats = addRacialBonus(addRacialBonus(result.stats, o.race, -1), result.race);
+    }
     // Adjust HP only for what changed: class or level (recalculate) or CON (modifier x level)
     const conMod = st => Math.floor(((st?.con || 10) - 10) / 2);
     let diff = 0;
@@ -504,6 +519,8 @@ function saveCharacter() {
     result.currentHp = Math.max(0, Math.min(result.maxHp, live.currentHp + diff));
   } else {
     result = d;
+    result.stats = addRacialBonus(d.stats, d.race);
+    result.racialApplied = true;
     if (!result.id) result.id = 'char_' + Date.now();
     if (!result.currentHp) result.currentHp = result.maxHp;
   }

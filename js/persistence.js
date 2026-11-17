@@ -231,7 +231,7 @@ function onRemoteChars(chars) {
   _deletedIds.forEach(id => { if (!incomingIds.has(id)) _deletedIds.delete(id); });
   state.characters = next;
   cacheLocally();
-  if (state.currentUser?.isDM) syncPortraitsToWorld();
+  if (state.currentUser?.isDM) { applyRacialBonusesToExisting(); syncPortraitsToWorld(); }
   // Anything kept locally but not yet sent goes out now
   if (state.characters.some(c => canWriteChar(c) && canonStr(c) !== _charSnap[c.id])) save();
   _rerender();

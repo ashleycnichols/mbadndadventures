@@ -3,73 +3,74 @@
 // ============================================================
 
 const RACES = [
-  { id:'human', name:'Human', icon:'👤', desc:'Versatile, +1 all stats', stats:{str:1,dex:1,con:1,int:1,wis:1,cha:1} },
-  { id:'elf', name:'Elf', icon:'🧝', desc:'Darkvision, Trance, +2 DEX', stats:{dex:2} },
-  { id:'dwarf', name:'Dwarf', icon:'⛏', desc:'Darkvision, Resilience, +2 CON', stats:{con:2} },
-  { id:'halfling', name:'Halfling', icon:'🌿', desc:'Lucky, Brave, +2 DEX', stats:{dex:2} },
-  { id:'gnome', name:'Gnome', icon:'🔬', desc:'Gnome Cunning, +2 INT', stats:{int:2} },
-  { id:'half-orc', name:'Half-Orc', icon:'🪓', desc:'Relentless, +2 STR, +1 CON', stats:{str:2,con:1} },
-  { id:'tiefling', name:'Tiefling', icon:'😈', desc:'Hellish Resistance, +2 CHA, +1 INT', stats:{cha:2,int:1} },
-  { id:'dragonborn', name:'Dragonborn', icon:'🐉', desc:'Breath Weapon, +2 STR, +1 CHA', stats:{str:2,cha:1} },
-  { id:'half-elf', name:'Half-Elf', icon:'✨', desc:'Fey Ancestry, +2 CHA', stats:{cha:2} },
-  { id:'aasimar', name:'Aasimar', icon:'👼', desc:'Celestial Resistance, Healing Hands', stats:{cha:2} },
-  { id:'tabaxi', name:'Tabaxi', icon:'🐱', desc:'Feline Agility, +2 DEX, +1 CHA', stats:{dex:2,cha:1} },
-  { id:'warforged', name:'Warforged', icon:'🤖', desc:'Constructed Resilience, +2 CON', stats:{con:2} },
+  { id:'human', speed:30, name:'Human', icon:'👤', desc:'Versatile, +1 all stats', stats:{str:1,dex:1,con:1,int:1,wis:1,cha:1} },
+  { id:'elf', speed:30, name:'Elf', icon:'🧝', desc:'Darkvision, Trance, +2 DEX', stats:{dex:2} },
+  { id:'dwarf', speed:25, name:'Dwarf', icon:'⛏', desc:'Darkvision, Resilience, +2 CON', stats:{con:2} },
+  { id:'halfling', speed:25, name:'Halfling', icon:'🌿', desc:'Lucky, Brave, +2 DEX', stats:{dex:2} },
+  { id:'gnome', speed:25, name:'Gnome', icon:'🔬', desc:'Gnome Cunning, +2 INT', stats:{int:2} },
+  { id:'half-orc', speed:30, name:'Half-Orc', icon:'🪓', desc:'Relentless, +2 STR, +1 CON', stats:{str:2,con:1} },
+  { id:'tiefling', speed:30, name:'Tiefling', icon:'😈', desc:'Hellish Resistance, +2 CHA, +1 INT', stats:{cha:2,int:1} },
+  { id:'dragonborn', speed:30, name:'Dragonborn', icon:'🐉', desc:'Breath Weapon, +2 STR, +1 CHA', stats:{str:2,cha:1} },
+  { id:'half-elf', speed:30, name:'Half-Elf', icon:'✨', desc:'Fey Ancestry, +2 CHA', stats:{cha:2} },
+  { id:'aasimar', speed:30, name:'Aasimar', icon:'👼', desc:'Celestial Resistance, Healing Hands', stats:{cha:2} },
+  { id:'tabaxi', speed:30, name:'Tabaxi', icon:'🐱', desc:'Feline Agility, +2 DEX, +1 CHA', stats:{dex:2,cha:1} },
+  { id:'warforged', speed:30, name:'Warforged', icon:'🤖', desc:'Constructed Resilience, +2 CON', stats:{con:2} },
 ];
 
 const CLASSES = [
-  { id:'barbarian', name:'Barbarian', icon:'⚔️', desc:'Rage, Unarmored Defense', hd:12, spellcaster:false,
+  { id:'barbarian', saves:['str','con'], name:'Barbarian', icon:'⚔️', desc:'Rage, Unarmored Defense', hd:12, spellcaster:false,
     weaponProf:'all', statHp:'con', weaponLimit:4,
     spellSlots:null },
-  { id:'bard', name:'Bard', icon:'🎵', desc:'Bardic Inspiration, Spellcasting', hd:8, spellcaster:true,
+  { id:'bard', saves:['dex','cha'], name:'Bard', icon:'🎵', desc:'Bardic Inspiration, Spellcasting', hd:8, spellcaster:true,
     weaponProf:'simple,hand-crossbow,longsword,rapier,shortsword', statHp:'cha', weaponLimit:3,
     cantripsKnown:[2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4,4],
     spellsKnown:  [4,5,6,7,8,9,10,11,12,14,15,15,16,18,19,19,20,22,22,22],
     spellSlots:[[2],[3],[4,2],[4,3],[4,3,2],[4,3,3],[4,3,3,1],[4,3,3,2],[4,3,3,3,1],[4,3,3,3,2],[4,3,3,3,2,1],[4,3,3,3,2,1,1],[4,3,3,3,2,1,1,1],[4,3,3,3,2,1,1,1,1],[4,3,3,3,2,1,1,1,1],[4,3,3,3,2,2,1,1,1],[4,3,3,3,3,2,1,1,1],[4,3,3,3,3,2,2,1,1],[4,3,3,3,3,2,2,2,1],[4,3,3,3,3,3,2,2,1]] },
-  { id:'cleric', name:'Cleric', icon:'✝️', desc:'Divine Domain, Spellcasting', hd:8, spellcaster:true,
+  { id:'cleric', saves:['wis','cha'], name:'Cleric', icon:'✝️', desc:'Divine Domain, Spellcasting', hd:8, spellcaster:true,
     weaponProf:'simple', statHp:'wis', weaponLimit:2,
     cantripsKnown:[3,3,3,4,4,4,4,4,4,5,5,5,5,5,5,5,5,5,5,5],
     spellSlots:[[2],[3],[4,2],[4,3],[4,3,2],[4,3,3],[4,3,3,1],[4,3,3,2],[4,3,3,3,1],[4,3,3,3,2],[4,3,3,3,2,1],[4,3,3,3,2,1,1],[4,3,3,3,2,1,1,1],[4,3,3,3,2,1,1,1,1],[4,3,3,3,2,1,1,1,1],[4,3,3,3,2,2,1,1,1],[4,3,3,3,3,2,1,1,1],[4,3,3,3,3,2,2,1,1],[4,3,3,3,3,2,2,2,1],[4,3,3,3,3,3,2,2,1]] },
-  { id:'druid', name:'Druid', icon:'🌿', desc:'Wild Shape, Spellcasting', hd:8, spellcaster:true,
+  { id:'druid', saves:['int','wis'], name:'Druid', icon:'🌿', desc:'Wild Shape, Spellcasting', hd:8, spellcaster:true,
     weaponProf:'club,dagger,dart,javelin,mace,quarterstaff,scimitar,sickle,sling,spear', statHp:'wis', weaponLimit:2,
     cantripsKnown:[2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4,4],
     spellSlots:[[2],[3],[4,2],[4,3],[4,3,2],[4,3,3],[4,3,3,1],[4,3,3,2],[4,3,3,3,1],[4,3,3,3,2],[4,3,3,3,2,1],[4,3,3,3,2,1,1],[4,3,3,3,2,1,1,1],[4,3,3,3,2,1,1,1,1],[4,3,3,3,2,1,1,1,1],[4,3,3,3,2,2,1,1,1],[4,3,3,3,3,2,1,1,1],[4,3,3,3,3,2,2,1,1],[4,3,3,3,3,2,2,2,1],[4,3,3,3,3,3,2,2,1]] },
-  { id:'fighter', name:'Fighter', icon:'🛡', desc:'Action Surge, Fighting Style', hd:10, spellcaster:false,
+  { id:'fighter', saves:['str','con'], name:'Fighter', icon:'🛡', desc:'Action Surge, Fighting Style', hd:10, spellcaster:false,
     weaponProf:'all', statHp:'con', weaponLimit:4,
     spellSlots:null },
-  { id:'monk', name:'Monk', icon:'👊', desc:'Ki, Unarmored Movement', hd:8, spellcaster:false,
+  { id:'monk', saves:['str','dex'], name:'Monk', icon:'👊', desc:'Ki, Unarmored Movement', hd:8, spellcaster:false,
     weaponProf:'simple,shortsword', statHp:'dex', weaponLimit:2,
     spellSlots:null },
-  { id:'paladin', name:'Paladin', icon:'🌟', desc:'Divine Smite, Lay on Hands', hd:10, spellcaster:true,
+  { id:'paladin', saves:['wis','cha'], name:'Paladin', icon:'🌟', desc:'Divine Smite, Lay on Hands', hd:10, spellcaster:true,
     weaponProf:'all', statHp:'cha', weaponLimit:3,
     cantripsKnown:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
     spellSlots:[[],[2],[3],[3],[4,2],[4,2],[4,3],[4,3],[4,3,2],[4,3,2],[4,3,3],[4,3,3],[4,3,3,1],[4,3,3,1],[4,3,3,2],[4,3,3,2],[4,3,3,3,1],[4,3,3,3,1],[4,3,3,3,2],[4,3,3,3,2]] },
-  { id:'ranger', name:'Ranger', icon:'🏹', desc:"Hunter's Mark, Natural Explorer", hd:10, spellcaster:true,
-    weaponProf:'all', statHp:'dex', weaponLimit:3,
+  { id:'ranger', saves:['str','dex'], name:'Ranger', icon:'🏹', desc:"Hunter's Mark, Natural Explorer", hd:10, spellcaster:true,
+    weaponProf:'all', statHp:'wis', weaponLimit:3,
     cantripsKnown:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    spellsKnown:  [0,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11],
     spellSlots:[[],[2],[3],[3],[4,2],[4,2],[4,3],[4,3],[4,3,2],[4,3,2],[4,3,3],[4,3,3],[4,3,3,1],[4,3,3,1],[4,3,3,2],[4,3,3,2],[4,3,3,3,1],[4,3,3,3,1],[4,3,3,3,2],[4,3,3,3,2]] },
-  { id:'rogue', name:'Rogue', icon:'🗡', desc:"Sneak Attack, Thieves' Cant", hd:8, spellcaster:false,
+  { id:'rogue', saves:['dex','int'], name:'Rogue', icon:'🗡', desc:"Sneak Attack, Thieves' Cant", hd:8, spellcaster:false,
     weaponProf:'simple,hand-crossbow,longsword,rapier,shortsword', statHp:'dex', weaponLimit:3,
     spellSlots:null },
-  { id:'sorcerer', name:'Sorcerer', icon:'💫', desc:'Sorcerous Origin, Metamagic', hd:6, spellcaster:true,
+  { id:'sorcerer', saves:['con','cha'], name:'Sorcerer', icon:'💫', desc:'Sorcerous Origin, Metamagic', hd:6, spellcaster:true,
     weaponProf:'dagger,dart,quarterstaff,light-crossbow', statHp:'cha', weaponLimit:2,
     cantripsKnown:[4,4,4,5,5,5,5,5,5,6,6,6,6,6,6,6,6,6,6,6],
     spellsKnown:  [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,16,17,17,18,18],
     spellSlots:[[2],[3],[4,2],[4,3],[4,3,2],[4,3,3],[4,3,3,1],[4,3,3,2],[4,3,3,3,1],[4,3,3,3,2],[4,3,3,3,2,1],[4,3,3,3,2,1,1],[4,3,3,3,2,1,1,1],[4,3,3,3,2,1,1,1,1],[4,3,3,3,2,1,1,1,1],[4,3,3,3,2,2,1,1,1],[4,3,3,3,3,2,1,1,1],[4,3,3,3,3,2,2,1,1],[4,3,3,3,3,2,2,2,1],[4,3,3,3,3,3,2,2,1]] },
-  { id:'warlock', name:'Warlock', icon:'👁', desc:'Eldritch Invocations, Pact Magic', hd:8, spellcaster:true,
+  { id:'warlock', saves:['wis','cha'], name:'Warlock', icon:'👁', desc:'Eldritch Invocations, Pact Magic', hd:8, spellcaster:true,
     weaponProf:'simple', statHp:'cha', weaponLimit:2,
     cantripsKnown:[2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4,4],
     spellsKnown:  [2,3,4,5,6,7,8,9,10,10,11,11,12,12,13,13,14,14,15,15],
     spellSlots:[[1],[2],[0,2],[0,2],[0,0,2],[0,0,2],[0,0,0,2],[0,0,0,2],[0,0,0,0,2],[0,0,0,0,2],[0,0,0,0,3],[0,0,0,0,3],[0,0,0,0,3],[0,0,0,0,3],[0,0,0,0,3],[0,0,0,0,3],[0,0,0,0,4],[0,0,0,0,4],[0,0,0,0,4],[0,0,0,0,4]] },
-  { id:'wizard', name:'Wizard', icon:'🧙', desc:'Arcane Recovery, Spellbook', hd:6, spellcaster:true,
+  { id:'wizard', saves:['int','wis'], name:'Wizard', icon:'🧙', desc:'Arcane Recovery, Spellbook', hd:6, spellcaster:true,
     weaponProf:'dagger,dart,quarterstaff,light-crossbow', statHp:'int', weaponLimit:2, spellbookPerLevel:2,
     cantripsKnown:[3,3,3,4,4,4,4,4,4,5,5,5,5,5,5,5,5,5,5,5],
     spellSlots:[[2],[3],[4,2],[4,3],[4,3,2],[4,3,3],[4,3,3,1],[4,3,3,2],[4,3,3,3,1],[4,3,3,3,2],[4,3,3,3,2,1],[4,3,3,3,2,1,1],[4,3,3,3,2,1,1,1],[4,3,3,3,2,1,1,1,1],[4,3,3,3,2,1,1,1,1],[4,3,3,3,2,2,1,1,1],[4,3,3,3,3,2,1,1,1],[4,3,3,3,3,2,2,1,1],[4,3,3,3,3,2,2,2,1],[4,3,3,3,3,3,2,2,1]] },
-  { id:'artificer', name:'Artificer', icon:'⚙️', desc:'Magical Tinkering, Infusions', hd:8, spellcaster:true,
+  { id:'artificer', saves:['con','int'], name:'Artificer', icon:'⚙️', desc:'Magical Tinkering, Infusions', hd:8, spellcaster:true,
     weaponProf:'simple,hand-crossbow,heavy-crossbow', statHp:'int', weaponLimit:3,
     cantripsKnown:[2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
     spellSlots:[[2],[2],[3],[3],[4,2],[4,2],[4,3],[4,3],[4,3,2],[4,3,2],[4,3,3],[4,3,3],[4,3,3,1],[4,3,3,1],[4,3,3,2],[4,3,3,2],[4,3,3,3,1],[4,3,3,3,1],[4,3,3,3,2],[4,3,3,3,2]] },
-  { id:'blood-hunter', name:'Blood Hunter', icon:'🩸', desc:'Blood Maledict, Crimson Rite', hd:10, spellcaster:false,
+  { id:'blood-hunter', saves:['dex','int'], name:'Blood Hunter', icon:'🩸', desc:'Blood Maledict, Crimson Rite', hd:10, spellcaster:false,
     weaponProf:'all', statHp:'str', weaponLimit:3,
     spellSlots:null },
 ];
@@ -141,15 +142,26 @@ function getSpellLimits(classId, charLevel, stats) {
     result.totalKnown = allowances.spellsKnown;
     result.isPrepared = false;
   } else {
-    // Prepared caster (cleric, druid, wizard, artificer) - level + modifier spells prepared
-    const modStat = cls.statHp; // reuse this field to find spellcasting mod
+    // Prepared caster: cleric, druid, wizard = level + modifier;
+    // paladin, artificer (half casters) = half level + modifier (2014 rules)
+    const modStat = cls.statHp; // spellcasting ability
     const spellMod = stats ? Math.floor(((stats[modStat] || 10) - 10) / 2) : 0;
-    result.totalKnown = Math.max(1, charLevel + spellMod);
+    const casterLevel = ['paladin','artificer'].includes(classId) ? Math.floor(charLevel / 2) : charLevel;
+    result.totalKnown = Math.max(1, casterLevel + spellMod);
     result.isPrepared = true;
   }
   
   return result;
 }
+
+const SKILL_LIST = [
+  {name:'Acrobatics',ab:'dex'},{name:'Animal Handling',ab:'wis'},{name:'Arcana',ab:'int'},
+  {name:'Athletics',ab:'str'},{name:'Deception',ab:'cha'},{name:'History',ab:'int'},
+  {name:'Insight',ab:'wis'},{name:'Intimidation',ab:'cha'},{name:'Investigation',ab:'int'},
+  {name:'Medicine',ab:'wis'},{name:'Nature',ab:'int'},{name:'Perception',ab:'wis'},
+  {name:'Performance',ab:'cha'},{name:'Persuasion',ab:'cha'},{name:'Religion',ab:'int'},
+  {name:'Sleight of Hand',ab:'dex'},{name:'Stealth',ab:'dex'},{name:'Survival',ab:'wis'},
+];
 
 const BACKGROUNDS = [
   { id:'acolyte', name:'Acolyte', icon:'🕯', desc:'Insight, Religion' },
@@ -402,27 +414,41 @@ const SPELLS = [
 const WEAPONS = [
   // Simple
   { id:'club', name:'Club', dmg:'1d4', type:'Bludgeoning', weight:'Simple', range:'Melee' },
-  { id:'dagger', name:'Dagger', dmg:'1d4', type:'Piercing', weight:'Simple', range:'Melee/Thrown' },
+  { id:'dagger', name:'Dagger', dmg:'1d4', type:'Piercing', weight:'Simple', range:'Melee/Thrown', finesse:true },
   { id:'greatclub', name:'Greatclub', dmg:'1d8', type:'Bludgeoning', weight:'Simple', range:'Melee' },
   { id:'handaxe', name:'Handaxe', dmg:'1d6', type:'Slashing', weight:'Simple', range:'Melee/Thrown' },
   { id:'javelin', name:'Javelin', dmg:'1d6', type:'Piercing', weight:'Simple', range:'Melee/Thrown' },
-  { id:'light-crossbow', name:'Light Crossbow', dmg:'1d8', type:'Piercing', weight:'Simple', range:'Ranged' },
-  { id:'shortbow', name:'Shortbow', dmg:'1d6', type:'Piercing', weight:'Simple', range:'Ranged' },
+  { id:'light-hammer', name:'Light Hammer', dmg:'1d4', type:'Bludgeoning', weight:'Simple', range:'Melee/Thrown' },
+  { id:'mace', name:'Mace', dmg:'1d6', type:'Bludgeoning', weight:'Simple', range:'Melee' },
   { id:'quarterstaff', name:'Quarterstaff', dmg:'1d6', type:'Bludgeoning', weight:'Simple', range:'Melee' },
+  { id:'sickle', name:'Sickle', dmg:'1d4', type:'Slashing', weight:'Simple', range:'Melee' },
   { id:'spear', name:'Spear', dmg:'1d6', type:'Piercing', weight:'Simple', range:'Melee/Thrown' },
+  { id:'light-crossbow', name:'Light Crossbow', dmg:'1d8', type:'Piercing', weight:'Simple', range:'Ranged' },
+  { id:'dart', name:'Dart', dmg:'1d4', type:'Piercing', weight:'Simple', range:'Ranged', finesse:true },
+  { id:'shortbow', name:'Shortbow', dmg:'1d6', type:'Piercing', weight:'Simple', range:'Ranged' },
+  { id:'sling', name:'Sling', dmg:'1d4', type:'Bludgeoning', weight:'Simple', range:'Ranged' },
   // Martial
   { id:'battleaxe', name:'Battleaxe', dmg:'1d8', type:'Slashing', weight:'Martial', range:'Melee' },
   { id:'flail', name:'Flail', dmg:'1d8', type:'Bludgeoning', weight:'Martial', range:'Melee' },
-  { id:'glaive', name:'Glaive', dmg:'1d10', type:'Slashing', weight:'Martial', range:'Melee' },
+  { id:'glaive', name:'Glaive', dmg:'1d10', type:'Slashing', weight:'Martial', range:'Melee (reach)' },
   { id:'greataxe', name:'Greataxe', dmg:'1d12', type:'Slashing', weight:'Martial', range:'Melee' },
   { id:'greatsword', name:'Greatsword', dmg:'2d6', type:'Slashing', weight:'Martial', range:'Melee' },
+  { id:'halberd', name:'Halberd', dmg:'1d10', type:'Slashing', weight:'Martial', range:'Melee (reach)' },
+  { id:'lance', name:'Lance', dmg:'1d12', type:'Piercing', weight:'Martial', range:'Melee (reach)' },
   { id:'longsword', name:'Longsword', dmg:'1d8', type:'Slashing', weight:'Martial', range:'Melee' },
   { id:'maul', name:'Maul', dmg:'2d6', type:'Bludgeoning', weight:'Martial', range:'Melee' },
-  { id:'rapier', name:'Rapier', dmg:'1d8', type:'Piercing', weight:'Martial', range:'Melee' },
-  { id:'scimitar', name:'Scimitar', dmg:'1d6', type:'Slashing', weight:'Martial', range:'Melee' },
-  { id:'shortsword', name:'Shortsword', dmg:'1d6', type:'Piercing', weight:'Martial', range:'Melee' },
-  { id:'longbow', name:'Longbow', dmg:'1d8', type:'Piercing', weight:'Martial', range:'Ranged' },
+  { id:'morningstar', name:'Morningstar', dmg:'1d8', type:'Piercing', weight:'Martial', range:'Melee' },
+  { id:'pike', name:'Pike', dmg:'1d10', type:'Piercing', weight:'Martial', range:'Melee (reach)' },
+  { id:'rapier', name:'Rapier', dmg:'1d8', type:'Piercing', weight:'Martial', range:'Melee', finesse:true },
+  { id:'scimitar', name:'Scimitar', dmg:'1d6', type:'Slashing', weight:'Martial', range:'Melee', finesse:true },
+  { id:'shortsword', name:'Shortsword', dmg:'1d6', type:'Piercing', weight:'Martial', range:'Melee', finesse:true },
+  { id:'trident', name:'Trident', dmg:'1d6', type:'Piercing', weight:'Martial', range:'Melee/Thrown' },
+  { id:'war-pick', name:'War Pick', dmg:'1d8', type:'Piercing', weight:'Martial', range:'Melee' },
+  { id:'warhammer', name:'Warhammer', dmg:'1d8', type:'Bludgeoning', weight:'Martial', range:'Melee' },
+  { id:'whip', name:'Whip', dmg:'1d4', type:'Slashing', weight:'Martial', range:'Melee (reach)', finesse:true },
+  { id:'blowgun', name:'Blowgun', dmg:'1', type:'Piercing', weight:'Martial', range:'Ranged' },
   { id:'hand-crossbow', name:'Hand Crossbow', dmg:'1d6', type:'Piercing', weight:'Martial', range:'Ranged' },
-  { id:'whip', name:'Whip', dmg:'1d4', type:'Slashing', weight:'Martial', range:'Melee (reach)' },
+  { id:'heavy-crossbow', name:'Heavy Crossbow', dmg:'1d10', type:'Piercing', weight:'Martial', range:'Ranged' },
+  { id:'longbow', name:'Longbow', dmg:'1d8', type:'Piercing', weight:'Martial', range:'Ranged' },
 ];
 

@@ -24,18 +24,10 @@ function renderPartyPanel() {
     const hpPct = Math.max(0, Math.round(ch.currentHp / ch.maxHp * 100));
     const hpColor = hpPct > 60 ? 'var(--green-health)' : hpPct > 25 ? '#8b6914' : 'var(--blood)';
     const initMod = getMod('dex');
-    const passivePerc = 10 + getMod('wis');
-    const spellMod = cls?.statHp ? getMod(cls.statHp) : 0;
+    const passivePerc = passivePerception(ch);
+    const spellMod = spellcastingMod(ch);
     const spellDC = 8 + profBonus + spellMod;
-    const chAC = (() => {
-      const dex = getMod('dex'), con = getMod('con'), wis = getMod('wis'), cid = ch.class;
-      if (cid === 'barbarian') return 10 + dex + con;
-      if (cid === 'monk')      return 10 + dex + wis;
-      if (cid === 'fighter' || cid === 'paladin') return 16;
-      if (cid === 'cleric' || cid === 'ranger')   return 14 + Math.min(dex, 2);
-      if (['bard','rogue','warlock','artificer','druid'].includes(cid)) return 11 + dex;
-      return 10 + dex;
-    })();
+    const chAC = calcAC(ch);
 
     // Spell slots summary
     const lvlIdx = Math.min(ch.level - 1, 19);
@@ -58,7 +50,7 @@ function renderPartyPanel() {
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:0.5rem">
         <div>
           <div style="font-family:'Cinzel',serif;font-size:1rem;color:var(--text-main);font-weight:600">${esc(ch.name)}</div>
-          <div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.1rem">${race?.name||''} ${cls?.name||''} · Lvl ${ch.level}${ch.player ? ' · '+esc(ch.player) : ''}</div>
+          <div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.1rem">${esc(race?.name||'')} ${esc(cls?.name||'')} · Lvl ${ch.level}${ch.player ? ' · '+esc(ch.player) : ''}</div>
         </div>
         ${ch.inspiration ? '<span title="Inspiration" style="font-size:1.2rem">⭐</span>' : ''}
       </div>

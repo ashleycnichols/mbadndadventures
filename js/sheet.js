@@ -88,25 +88,9 @@ function renderSheet(c) {
   const spellDC = 8 + profBonus + spellMod;
   const spellAtk = profBonus + spellMod;
   const initMod = getMod('dex');
-  const passivePerc = 10 + getMod('wis');
+  const passivePerc = passivePerception(c);
 
-  // AC: based on class starting armor + relevant DEX/CON/WIS mods
-  const calcAC = () => {
-    const dex = getMod('dex');
-    const con = getMod('con');
-    const wis = getMod('wis');
-    const classId = c.class;
-    if (classId === 'barbarian') return 10 + dex + con;       // Unarmored Defense
-    if (classId === 'monk')      return 10 + dex + wis;       // Unarmored Defense
-    if (classId === 'fighter')   return 16;                   // Chain mail (no DEX)
-    if (classId === 'paladin')   return 16;                   // Chain mail (no DEX)
-    if (classId === 'cleric')    return 14 + Math.min(dex,2); // Scale mail (max +2 DEX)
-    if (classId === 'ranger')    return 14 + Math.min(dex,2); // Scale mail (max +2 DEX)
-    if (classId === 'druid')     return 11 + dex;             // Leather
-    if (['bard','rogue','warlock','artificer'].includes(classId)) return 11 + dex; // Leather
-    return 10 + dex; // No armor: sorcerer, wizard, blood-hunter
-  };
-  const ac = calcAC();
+  const ac = calcAC(c);
 
   const hpPct = Math.max(0, Math.round(c.currentHp / c.maxHp * 100));
   const hpColor = hpPct > 60 ? 'var(--green-health)' : hpPct > 25 ? '#8b6914' : 'var(--blood)';
@@ -119,16 +103,6 @@ function renderSheet(c) {
   // Spell slots for this character
   const lvlIdx = Math.min(c.level - 1, 19);
   const slotCounts = cls?.spellSlots?.[lvlIdx] || [];
-
-  // Skill list with ability
-  const SKILLS = [
-    {name:'Acrobatics',ab:'dex'},{name:'Animal Handling',ab:'wis'},{name:'Arcana',ab:'int'},
-    {name:'Athletics',ab:'str'},{name:'Deception',ab:'cha'},{name:'History',ab:'int'},
-    {name:'Insight',ab:'wis'},{name:'Intimidation',ab:'cha'},{name:'Investigation',ab:'int'},
-    {name:'Medicine',ab:'wis'},{name:'Nature',ab:'int'},{name:'Perception',ab:'wis'},
-    {name:'Performance',ab:'cha'},{name:'Persuasion',ab:'cha'},{name:'Religion',ab:'int'},
-    {name:'Sleight of Hand',ab:'dex'},{name:'Stealth',ab:'dex'},{name:'Survival',ab:'wis'},
-  ];
 
   const CONDITIONS = ['Blinded','Charmed','Deafened','Frightened','Grappled','Incapacitated','Invisible','Paralyzed','Petrified','Poisoned','Prone','Restrained','Stunned','Unconscious'];
 
@@ -169,15 +143,15 @@ function renderSheet(c) {
     <!-- QUICK STATS BAR -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:0.5rem;margin-bottom:1rem">
       ${[
-        ['AC', ac],
+        ['AC', ac, `editAC('${c.id}')`, c.acOverride !== undefined ? 'Set by hand. Click to change' : 'Class default. Click to set your actual AC'],
         ['Proficiency','+'+profBonus],
         ['Initiative',(initMod>=0?'+':'')+initMod],
         ['Passive Perc.',passivePerc],
-        ['Speed','30 ft'],
+        ['Speed', raceSpeed(c) + ' ft'],
         cls?.spellcaster ? ['Spell DC', spellDC] : null,
         cls?.spellcaster ? ['Spell Atk', (spellAtk>=0?'+':'')+spellAtk] : null,
-      ].filter(Boolean).map(([label,val]) => `
-        <div style="background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:0.5rem;text-align:center">
+      ].filter(Boolean).map(([label,val,click,tip]) => `
+        <div ${click ? `onclick="${click}" title="${tip}"` : ''} style="background:var(--parchment-dark);border:1px solid ${click ? 'var(--gold)' : 'var(--border)'};border-radius:2px;padding:0.5rem;text-align:center;${click ? 'cursor:pointer' : ''}">
           <div style="font-size:1.1rem;font-family:'Cinzel Decorative',serif;color:var(--gold)">${val}</div>
           <div style="font-size:0.65rem;font-family:'Cinzel',serif;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em">${label}</div>
         </div>`).join('')}
@@ -255,10 +229,11 @@ function renderSheet(c) {
           <div style="font-family:'Cinzel',serif;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.5rem">Saving Throws</div>
           <div style="display:flex;flex-direction:column;gap:0.2rem">
             ${stats.map(s => {
-              const mod = getMod(s);
+              const bonus = saveBonus(c, s);
+              const prof = isSaveProficient(c, s);
               return `<div style="display:flex;justify-content:space-between;font-size:0.85rem">
-                <span style="color:var(--text-muted)">${labels[s]}</span>
-                <span style="font-family:'Cinzel',serif;color:var(--text-main)">${mod>=0?'+':''}${mod}</span>
+                <span style="color:var(--text-muted)"><span style="color:${prof ? 'var(--gold)' : 'var(--border)'}" title="${prof ? 'Proficient' : ''}">${prof ? '●' : '○'}</span> ${labels[s]}</span>
+                <span style="font-family:'Cinzel',serif;color:var(--text-main)">${fmtMod(bonus)}</span>
               </div>`;
             }).join('')}
           </div>
@@ -286,13 +261,14 @@ function renderSheet(c) {
 
         <!-- SKILLS -->
         <div style="background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:1rem">
-          <div style="font-family:'Cinzel',serif;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.5rem">Skills</div>
+          <div style="font-family:'Cinzel',serif;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.5rem">Skills <span style="text-transform:none;letter-spacing:0;font-style:italic">· ● proficient, click to change</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.15rem">
-            ${SKILLS.map(sk => {
-              const mod = getMod(sk.ab);
-              return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:0.82rem;padding:0.1rem 0.25rem">
-                <span style="color:var(--text-main)">${sk.name} <span style="color:var(--text-muted);font-size:0.72rem">(${shortLabels[sk.ab]})</span></span>
-                <span style="font-family:'Cinzel',serif;color:var(--text-main);font-size:0.8rem">${mod>=0?'+':''}${mod}</span>
+            ${SKILL_LIST.map(sk => {
+              const prof = isSkillProficient(c, sk.name);
+              const fromBg = backgroundSkills(c).includes(sk.name);
+              return `<div onclick="toggleSkillProf('${c.id}','${sk.name}')" title="${fromBg ? 'Proficient from background' : prof ? 'Proficient. Click to remove' : 'Click to mark proficient'}" style="display:flex;justify-content:space-between;align-items:center;font-size:0.82rem;padding:0.1rem 0.25rem;cursor:${fromBg ? 'default' : 'pointer'}">
+                <span style="color:var(--text-main)"><span style="color:${prof ? 'var(--gold)' : 'var(--border)'}">${prof ? '●' : '○'}</span> ${sk.name} <span style="color:var(--text-muted);font-size:0.72rem">(${shortLabels[sk.ab]})</span></span>
+                <span style="font-family:'Cinzel',serif;color:var(--text-main);font-size:0.8rem">${fmtMod(skillBonus(c, sk.name))}</span>
               </div>`;
             }).join('')}
           </div>
@@ -308,12 +284,10 @@ function renderSheet(c) {
             <div style="font-size:0.7rem;color:var(--text-muted);font-family:'Cinzel',serif">Dmg</div>
             <div style="font-size:0.7rem;color:var(--text-muted);font-family:'Cinzel',serif">Type</div>
             ${weaponObjs.map(w => {
-              const isFinesse = ['dagger','rapier','shortsword','whip','scimitar'].includes(w.id);
-              const isRanged = w.range === 'Ranged';
-              const atkMod = profBonus + (isRanged ? getMod('dex') : isFinesse ? Math.max(getMod('str'),getMod('dex')) : getMod('str'));
-              return `<div style="font-family:'Cinzel',serif;font-size:0.85rem">${w.name}</div>
-                <div style="font-family:'Cinzel',serif;font-size:0.85rem;color:var(--gold)">${atkMod>=0?'+':''}${atkMod}</div>
-                <div style="font-family:'Cinzel',serif;font-size:0.85rem;color:var(--blood)">${w.dmg}</div>
+              const wa = weaponAttack(c, w);
+              return `<div style="font-family:'Cinzel',serif;font-size:0.85rem">${w.name}${wa.proficient ? '' : ' <span title="Not proficient: no proficiency bonus" style="color:var(--blood)">⚠</span>'}</div>
+                <div style="font-family:'Cinzel',serif;font-size:0.85rem;color:var(--gold)">${fmtMod(wa.atk)}</div>
+                <div style="font-family:'Cinzel',serif;font-size:0.85rem;color:var(--blood)">${wa.dmg}</div>
                 <div style="font-size:0.78rem;color:var(--text-muted);font-style:italic">${w.type}</div>`;
             }).join('')}
           </div>
@@ -343,7 +317,7 @@ function renderSheet(c) {
         <div style="background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:1rem">
           <div style="font-family:'Cinzel',serif;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.4rem">Cantrips (at will)</div>
           <div style="display:flex;flex-wrap:wrap;gap:0.3rem">
-            ${cantrips.map(sp => `<span onclick="showSheetSpellDetail('${sp.id}')" style="background:var(--parchment);border:1px solid var(--border);border-radius:2px;padding:0.2rem 0.6rem;font-family:'Cinzel',serif;font-size:0.78rem;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">${sp.name}</span>`).join('')}
+            ${cantrips.map(sp => `<span onclick="showSheetSpellDetail('${sp.id}','${c.id}')" style="background:var(--parchment);border:1px solid var(--border);border-radius:2px;padding:0.2rem 0.6rem;font-family:'Cinzel',serif;font-size:0.78rem;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">${sp.name}</span>`).join('')}
           </div>
         </div>` : ''}
 
@@ -359,7 +333,7 @@ function renderSheet(c) {
             if (!group.length) return '';
             return `<div style="margin-bottom:0.5rem">
               <div style="font-size:0.72rem;font-family:'Cinzel',serif;color:var(--gold);margin-bottom:0.2rem">Level ${lvl}</div>
-              ${group.map(sp => `<div onclick="showSheetSpellDetail('${sp.id}')" style="display:flex;justify-content:space-between;font-size:0.85rem;padding:0.2rem 0.25rem;border-bottom:1px solid var(--parchment-deeper);cursor:pointer;border-radius:2px;transition:background 0.12s" onmouseover="this.style.background='rgba(201,148,42,0.1)'" onmouseout="this.style.background=''">
+              ${group.map(sp => `<div onclick="showSheetSpellDetail('${sp.id}','${c.id}')" style="display:flex;justify-content:space-between;font-size:0.85rem;padding:0.2rem 0.25rem;border-bottom:1px solid var(--parchment-deeper);cursor:pointer;border-radius:2px;transition:background 0.12s" onmouseover="this.style.background='rgba(201,148,42,0.1)'" onmouseout="this.style.background=''">
                 <span>${sp.name}</span>
                 <span style="font-size:0.75rem;color:var(--text-muted);font-style:italic">${sp.school}</span>
               </div>`).join('')}
@@ -587,6 +561,15 @@ function confirmAddSpell(charId, spellId) {
   refreshSheets();
 }
 
+// Remove a spell (for example, changing prepared spells after a long rest)
+function removeSpell(charId, spellId) {
+  const c = state.characters.find(x => x.id === charId);
+  if (!c) return;
+  c.spells = c.spells.filter(x => x !== spellId);
+  document.getElementById('sheet-spell-modal')?.remove();
+  save(); refreshSheets();
+}
+
 function doShortRest(id) {
   const c = state.characters.find(x => x.id === id);
   if (!c) return;
@@ -616,7 +599,7 @@ function doLongRest(id) {
 // ============================================================
 // SPELL DETAIL MODAL (sheet)
 // ============================================================
-function showSheetSpellDetail(id) {
+function showSheetSpellDetail(id, charId) {
   const sp = SPELLS.find(s => s.id === id);
   if (!sp) return;
   const existing = document.getElementById('sheet-spell-modal');
@@ -638,11 +621,12 @@ function showSheetSpellDetail(id) {
         <div><span style="font-family:'Cinzel',serif;font-size:0.7rem;color:var(--text-muted);text-transform:uppercase">Casting Time</span><div style="font-size:0.9rem">${sp.cast||'—'}</div></div>
         <div><span style="font-family:'Cinzel',serif;font-size:0.7rem;color:var(--text-muted);text-transform:uppercase">Range</span><div style="font-size:0.9rem">${sp.range||'—'}</div></div>
         <div><span style="font-family:'Cinzel',serif;font-size:0.7rem;color:var(--text-muted);text-transform:uppercase">Duration</span><div style="font-size:0.9rem">${sp.duration||'—'}</div></div>
-        <div><span style="font-family:'Cinzel',serif;font-size:0.7rem;color:var(--text-muted);text-transform:uppercase">Components</span><div style="font-size:0.9rem">V, S</div></div>
+        ${sp.components ? `<div><span style="font-family:'Cinzel',serif;font-size:0.7rem;color:var(--text-muted);text-transform:uppercase">Components</span><div style="font-size:0.9rem">${sp.components}</div></div>` : ''}
       </div>
       <p style="font-style:italic;color:var(--text-muted);font-size:0.9rem;margin-bottom:0.75rem;line-height:1.5">${sp.desc||''}</p>
       <p style="font-size:0.95rem;line-height:1.7;color:var(--text-main)">${sp.detail||''}</p>
-      <div style="margin-top:1.25rem;text-align:right">
+      <div style="margin-top:1.25rem;display:flex;justify-content:space-between;gap:0.5rem">
+        ${charId && state.characters.find(x => x.id === charId)?.spells.includes(id) ? `<button class="btn-secondary btn-sm" style="color:var(--blood);border-color:var(--blood)" onclick="removeSpell('${charId}','${id}')">Remove from sheet</button>` : '<span></span>'}
         <button class="btn-secondary btn-sm" onclick="document.getElementById('sheet-spell-modal').remove()">Close</button>
       </div>
     </div>`;
