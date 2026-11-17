@@ -172,7 +172,7 @@ function renderCreatorStep() {
       const selCantrips = d.spells.filter(id => SPELLS.find(s=>s.id===id)?.level===0).length;
       const selLeveled = d.spells.filter(id => (SPELLS.find(s=>s.id===id)?.level||0) > 0).length;
 
-      html = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
+      html = `<div class="creator-two-col" style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
         <div>
           <div class="sidebar-title" style="margin-bottom:0.4rem">Weapons</div>
           <div style="font-size:0.8rem;color:var(--text-muted);font-style:italic;margin-bottom:0.75rem">${cls?.name||'Your class'} is proficient with: <strong style="color:var(--text-main)">${cls?.weaponProf==='all'?'all weapons':cls?.weaponProf?.replace(/,/g,', ')||'—'}</strong>. Non-proficient weapons shown below with ⚠.</div>

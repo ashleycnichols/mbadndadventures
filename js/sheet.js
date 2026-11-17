@@ -163,7 +163,7 @@ function renderSheet(c) {
       </div>` : ''}
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:1rem">
+    <div class="sheet-two-col" style="display:grid;grid-template-columns:1fr 1.6fr;gap:1rem">
       <!-- LEFT COLUMN -->
       <div style="display:flex;flex-direction:column;gap:1rem">
 
@@ -268,7 +268,7 @@ function renderSheet(c) {
         <!-- SKILLS -->
         <div style="background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:1rem">
           <div style="font-family:var(--font-ui);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.5rem">Skills <span style="text-transform:none;letter-spacing:0;font-style:italic">· ● proficient, click to change</span></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.15rem">
+          <div class="skills-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:0.15rem">
             ${SKILL_LIST.map(sk => {
               const prof = isSkillProficient(c, sk.name);
               const fromBg = backgroundSkills(c).includes(sk.name) || raceSkills(c).includes(sk.name);
