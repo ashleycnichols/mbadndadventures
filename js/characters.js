@@ -96,6 +96,7 @@ function classDefaultAC(ch) {
 function calcAC(ch) {
   if (!ch?.stats) return 10;
   if (Number.isFinite(+ch.acOverride) && ch.acOverride !== '' && ch.acOverride !== null) return +ch.acOverride;
+  if (ch.race === 'tortle') return 17; // Natural Armor replaces worn armour
   return classDefaultAC(ch) + (RACE_AC_BONUS[ch.race] || 0);
 }
 function editAC(id) {
@@ -109,6 +110,10 @@ function editAC(id) {
 }
 
 function raceSpeed(ch) { return RACES.find(r => r.id === ch?.race)?.speed || 30; }
+function raceSpeedText(ch) {
+  const r = RACES.find(x => x.id === ch?.race);
+  return (r?.speed || 30) + ' ft' + (r?.fly ? `, fly ${r.fly}` : '');
+}
 
 function isSaveProficient(ch, ab) { return (CLASSES.find(c => c.id === ch?.class)?.saves || []).includes(ab); }
 function saveBonus(ch, ab) { return abilityMod(ch, ab) + (isSaveProficient(ch, ab) ? proficiencyBonus(ch) : 0); }
@@ -158,16 +163,25 @@ function addRacialBonus(stats, raceId, sign = 1) {
 
 // One-time update (DM's screen): give existing characters their racial bonuses.
 // The racialApplied flag makes sure it is never added twice.
+// Races restored in November 2026: earlier passes marked their characters as done
+// without applying anything, because the app didn't know these races then.
+const RESTORED_RACES = ['kobold', 'tortle', 'fairy', 'aarakocra'];
 function applyRacialBonusesToExisting() {
   if (!state.currentUser?.isDM || !_charsLoaded) return;
   let changed = false;
   state.characters.forEach(c => {
-    if (c.racialApplied || !c.race) return;
+    if (!c.race) return;
+    const missed = c.racialApplied && !c.racialRace && RESTORED_RACES.includes(c.race);
+    if (c.racialApplied && !missed) {
+      if (!c.racialRace) { c.racialRace = c.race; changed = true; } // record which race's bonus is in the scores
+      return;
+    }
     const conBefore = abilityMod(c, 'con');
     c.stats = addRacialBonus(c.stats, c.race);
     const conDiff = abilityMod(c, 'con') - conBefore;
     if (conDiff) { c.maxHp += conDiff * c.level; c.currentHp = Math.max(0, c.currentHp + conDiff * c.level); }
     c.racialApplied = true;
+    c.racialRace = c.race;
     changed = true;
   });
   if (changed) save();

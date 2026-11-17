@@ -505,6 +505,7 @@ function saveCharacter() {
     // Race changed: swap the old race's bonus for the new one's
     if (result.racialApplied && result.race !== o.race) {
       result.stats = addRacialBonus(addRacialBonus(result.stats, o.race, -1), result.race);
+      result.racialRace = result.race;
     }
     // Adjust HP only for what changed: class or level (recalculate) or CON (modifier x level)
     const conMod = st => Math.floor(((st?.con || 10) - 10) / 2);
@@ -521,6 +522,7 @@ function saveCharacter() {
     result = d;
     result.stats = addRacialBonus(d.stats, d.race);
     result.racialApplied = true;
+    result.racialRace = d.race;
     if (!result.id) result.id = 'char_' + Date.now();
     if (!result.currentHp) result.currentHp = result.maxHp;
   }

@@ -149,7 +149,7 @@ function renderSheet(c) {
         ['Proficiency','+'+profBonus],
         ['Initiative',(initMod>=0?'+':'')+initMod],
         ['Passive Perc.',passivePerc],
-        ['Speed', raceSpeed(c) + ' ft'],
+        ['Speed', raceSpeedText(c)],
         cls?.spellcaster ? ['Spell DC', spellDC] : null,
         cls?.spellcaster ? ['Spell Atk', (spellAtk>=0?'+':'')+spellAtk] : null,
       ].filter(Boolean).map(([label,val,click,tip]) => `

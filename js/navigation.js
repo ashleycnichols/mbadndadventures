@@ -16,6 +16,8 @@ function showPanel(id, callerEl) {
   if (id === 'quick') { renderQuickView(); }
   if (id === 'combat') { renderCombatView(); }
   if (id === 'party') {
+    // Clicking the Party tab itself always goes back to the overview
+    if (callerEl?.classList?.contains('nav-tab')) state.dmPartyCharId = null;
     if (state.dmPartyCharId) renderDMSheet(state.dmPartyCharId);
     else renderPartyPanel();
   }

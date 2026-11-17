@@ -14,6 +14,11 @@ const RACES = [
   { id:'half-elf', speed:30, name:'Half-Elf', icon:'✨', desc:'Fey Ancestry, +2 CHA', stats:{cha:2} },
   { id:'aasimar', speed:30, name:'Aasimar', icon:'👼', desc:'Celestial Resistance, Healing Hands', stats:{cha:2} },
   { id:'tabaxi', speed:30, name:'Tabaxi', icon:'🐱', desc:'Feline Agility, +2 DEX, +1 CHA', stats:{dex:2,cha:1} },
+  // Restored: added in March 2026, lost in a later paste
+  { id:'kobold', speed:30, name:'Kobold', icon:'🦎', desc:'Pack Tactics, Darkvision, +2 DEX, -2 STR', stats:{dex:2,str:-2} },
+  { id:'tortle', speed:30, name:'Tortle', icon:'🐢', desc:'Natural Armor (AC 17), Hold Breath, +2 STR, +1 WIS', stats:{str:2,wis:1} },
+  { id:'fairy', speed:30, fly:30, name:'Fairy', icon:'🧚', desc:'Fairy Magic, Flight (speed 30ft), Small, +2 CHA, +1 CON', stats:{cha:2,con:1} },
+  { id:'aarakocra', speed:25, fly:50, name:'Aarakocra', icon:'🦅', desc:'Flight (speed 50ft), Talons, +2 DEX, +1 WIS', stats:{dex:2,wis:1} },
   { id:'warforged', speed:30, name:'Warforged', icon:'🤖', desc:'Constructed Resilience, +2 CON', stats:{con:2} },
 ];
 
@@ -108,8 +113,39 @@ const RACE_TRAITS = {
     { name: 'Specialized Design', text: 'Proficiency in one skill and one tool of your choice.', choose: 'one skill (mark it in Skills)' },
   ],
 };
+RACE_TRAITS.kobold = [
+  { name: 'Ability Score Increase', text: '+2 Dexterity, −2 Strength.', auto: 'ability scores' },
+  { name: 'Speed', text: '30 ft.', auto: 'speed' },
+  { name: 'Darkvision', text: '60 ft.' },
+  { name: 'Grovel, Cower, and Beg', text: 'Action: cower pathetically. Until the end of your next turn, allies have advantage on attacks against enemies within 10 ft of you that can see you. Once per short or long rest.' },
+  { name: 'Pack Tactics', text: 'Advantage on an attack roll when an ally (not incapacitated) is within 5 ft of the target.' },
+  { name: 'Sunlight Sensitivity', text: 'Disadvantage on attack rolls and sight-based Perception checks when you, the target or what you\'re looking at is in direct sunlight.' },
+];
+RACE_TRAITS.tortle = [
+  { name: 'Ability Score Increase', text: '+2 Strength, +1 Wisdom.', auto: 'ability scores' },
+  { name: 'Speed', text: '30 ft.', auto: 'speed' },
+  { name: 'Natural Armor', text: 'Your shell gives you AC 17 (Dexterity doesn\'t count). You can\'t wear armour, but a shield still adds its bonus.', auto: 'AC' },
+  { name: 'Claws', text: 'Unarmed strikes deal 1d4 slashing damage.' },
+  { name: 'Hold Breath', text: 'Hold your breath for up to 1 hour.' },
+  { name: 'Shell Defense', text: 'Action: withdraw into your shell. +4 AC, advantage on Strength and Constitution saves; you are prone, speed 0, disadvantage on Dexterity saves, no reactions. Bonus action to come out.' },
+  { name: 'Survival Instinct', text: 'Proficiency in Survival.', auto: 'skills' },
+];
+RACE_TRAITS.fairy = [
+  { name: 'Ability Score Increase', text: '+2 Charisma, +1 Constitution.', auto: 'ability scores and HP' },
+  { name: 'Speed', text: '30 ft, and flying 30 ft (not while wearing medium or heavy armour).', auto: 'speed' },
+  { name: 'Size', text: 'Small.' },
+  { name: 'Fey', text: 'Your creature type is fey, not humanoid.' },
+  { name: 'Fairy Magic', text: 'Druidcraft cantrip. At level 3, Faerie Fire once per long rest; at level 5, Enlarge/Reduce once per long rest. Casting ability: Intelligence, Wisdom or Charisma (your choice).', choose: 'casting ability' },
+];
+RACE_TRAITS.aarakocra = [
+  { name: 'Ability Score Increase', text: '+2 Dexterity, +1 Wisdom.', auto: 'ability scores' },
+  { name: 'Speed', text: '25 ft walking, flying 50 ft (not while wearing medium or heavy armour).', auto: 'speed' },
+  { name: 'Talons', text: 'Unarmed strikes deal 1d4 slashing damage.' },
+  { name: 'Languages', text: 'Common, Aarakocra and Auran.' },
+];
+
 // Racial effects the sheet applies automatically
-const RACE_SKILLS = { elf: ['Perception'], 'half-orc': ['Intimidation'], tabaxi: ['Perception', 'Stealth'] };
+const RACE_SKILLS = { elf: ['Perception'], 'half-orc': ['Intimidation'], tabaxi: ['Perception', 'Stealth'], tortle: ['Survival'] };
 const RACE_WEAPONS = { dwarf: ['battleaxe', 'handaxe', 'light-hammer', 'warhammer'] };
 const RACE_AC_BONUS = { warforged: 1 };
 
