@@ -17,6 +17,102 @@ const RACES = [
   { id:'warforged', speed:30, name:'Warforged', icon:'🤖', desc:'Constructed Resilience, +2 CON', stats:{con:2} },
 ];
 
+// Racial traits (2014 rules), summarised. "auto" marks what the sheet already
+// includes in its numbers; "choose" marks choices the player adds with Edit.
+const RACE_TRAITS = {
+  human: [
+    { name: 'Ability Score Increase', text: '+1 to every ability score.', auto: 'ability scores' },
+    { name: 'Speed', text: '30 ft.', auto: 'speed' },
+    { name: 'Languages', text: 'Common and one extra language of your choice.' },
+  ],
+  elf: [
+    { name: 'Ability Score Increase', text: '+2 Dexterity. Your subrace adds another increase.', auto: 'ability scores', choose: 'subrace increase' },
+    { name: 'Speed', text: '30 ft.', auto: 'speed' },
+    { name: 'Darkvision', text: 'See in dim light within 60 ft as if bright, and in darkness as if dim (no colour).' },
+    { name: 'Keen Senses', text: 'Proficiency in Perception.', auto: 'skills' },
+    { name: 'Fey Ancestry', text: 'Advantage on saves against being charmed; magic can\'t put you to sleep.' },
+    { name: 'Trance', text: 'Meditate for 4 hours instead of sleeping 8 to get the benefit of a long rest.' },
+  ],
+  dwarf: [
+    { name: 'Ability Score Increase', text: '+2 Constitution.', auto: 'ability scores and HP' },
+    { name: 'Speed', text: '25 ft, not reduced by heavy armour.', auto: 'speed' },
+    { name: 'Darkvision', text: '60 ft.' },
+    { name: 'Dwarven Resilience', text: 'Advantage on saves against poison; resistance to poison damage.' },
+    { name: 'Dwarven Combat Training', text: 'Proficient with battleaxe, handaxe, light hammer and warhammer.', auto: 'weapon attacks' },
+    { name: 'Stonecunning', text: 'Double proficiency on History checks about stonework.' },
+  ],
+  halfling: [
+    { name: 'Ability Score Increase', text: '+2 Dexterity.', auto: 'ability scores' },
+    { name: 'Speed', text: '25 ft.', auto: 'speed' },
+    { name: 'Lucky', text: 'Reroll a 1 on an attack roll, ability check or saving throw; use the new roll.' },
+    { name: 'Brave', text: 'Advantage on saves against being frightened.' },
+    { name: 'Halfling Nimbleness', text: 'Move through the space of any creature larger than you.' },
+  ],
+  gnome: [
+    { name: 'Ability Score Increase', text: '+2 Intelligence.', auto: 'ability scores' },
+    { name: 'Speed', text: '25 ft.', auto: 'speed' },
+    { name: 'Darkvision', text: '60 ft.' },
+    { name: 'Gnome Cunning', text: 'Advantage on Intelligence, Wisdom and Charisma saves against magic.' },
+  ],
+  'half-orc': [
+    { name: 'Ability Score Increase', text: '+2 Strength, +1 Constitution.', auto: 'ability scores and HP' },
+    { name: 'Speed', text: '30 ft.', auto: 'speed' },
+    { name: 'Darkvision', text: '60 ft.' },
+    { name: 'Menacing', text: 'Proficiency in Intimidation.', auto: 'skills' },
+    { name: 'Relentless Endurance', text: 'Once per long rest, drop to 1 HP instead of 0 (unless killed outright).' },
+    { name: 'Savage Attacks', text: 'On a melee weapon critical hit, roll one extra weapon damage die.' },
+  ],
+  tiefling: [
+    { name: 'Ability Score Increase', text: '+2 Charisma, +1 Intelligence.', auto: 'ability scores' },
+    { name: 'Speed', text: '30 ft.', auto: 'speed' },
+    { name: 'Darkvision', text: '60 ft.' },
+    { name: 'Hellish Resistance', text: 'Resistance to fire damage.' },
+    { name: 'Infernal Legacy', text: 'Thaumaturgy cantrip. At level 3, Hellish Rebuke once per long rest; at level 5, Darkness once per long rest. Charisma is the casting ability.' },
+  ],
+  dragonborn: [
+    { name: 'Ability Score Increase', text: '+2 Strength, +1 Charisma.', auto: 'ability scores' },
+    { name: 'Speed', text: '30 ft.', auto: 'speed' },
+    { name: 'Draconic Ancestry', text: 'Your dragon type sets your breath weapon\'s damage type and shape.' },
+    { name: 'Breath Weapon', text: 'Action: 2d6 damage in your ancestry\'s area (3d6 at 6, 4d6 at 11, 5d6 at 16). Save DC 8 + CON modifier + proficiency. Once per short or long rest.' },
+    { name: 'Damage Resistance', text: 'Resistance to your ancestry\'s damage type.' },
+  ],
+  'half-elf': [
+    { name: 'Ability Score Increase', text: '+2 Charisma, plus +1 to two other abilities of your choice.', auto: 'ability scores (+2 CHA only)', choose: 'the two +1 increases' },
+    { name: 'Speed', text: '30 ft.', auto: 'speed' },
+    { name: 'Darkvision', text: '60 ft.' },
+    { name: 'Fey Ancestry', text: 'Advantage on saves against being charmed; magic can\'t put you to sleep.' },
+    { name: 'Skill Versatility', text: 'Proficiency in two skills of your choice.', choose: 'two skills (mark them in Skills)' },
+  ],
+  aasimar: [
+    { name: 'Ability Score Increase', text: '+2 Charisma. Your subrace adds another increase.', auto: 'ability scores (+2 CHA only)', choose: 'subrace increase' },
+    { name: 'Speed', text: '30 ft.', auto: 'speed' },
+    { name: 'Darkvision', text: '60 ft.' },
+    { name: 'Celestial Resistance', text: 'Resistance to necrotic and radiant damage.' },
+    { name: 'Healing Hands', text: 'Action: touch a creature to restore HP equal to your level. Once per long rest.' },
+    { name: 'Light Bearer', text: 'Light cantrip (Charisma).' },
+  ],
+  tabaxi: [
+    { name: 'Ability Score Increase', text: '+2 Dexterity, +1 Charisma.', auto: 'ability scores' },
+    { name: 'Speed', text: '30 ft, climbing 20 ft.', auto: 'speed' },
+    { name: 'Darkvision', text: '60 ft.' },
+    { name: 'Feline Agility', text: 'Double your speed until the end of the turn; recharge by moving 0 ft on a turn.' },
+    { name: 'Cat\'s Claws', text: 'Unarmed strikes deal 1d4 slashing damage.' },
+    { name: 'Cat\'s Talent', text: 'Proficiency in Perception and Stealth.', auto: 'skills' },
+  ],
+  warforged: [
+    { name: 'Ability Score Increase', text: '+2 Constitution, plus +1 to one other ability of your choice.', auto: 'ability scores and HP (+2 CON only)', choose: 'the +1 increase' },
+    { name: 'Speed', text: '30 ft.', auto: 'speed' },
+    { name: 'Constructed Resilience', text: 'Advantage on saves against poison, resistance to poison damage; no need to eat, drink or breathe; immune to disease; magic can\'t put you to sleep.' },
+    { name: 'Sentry\'s Rest', text: 'A long rest is 6 hours of inactive but conscious rest.' },
+    { name: 'Integrated Protection', text: '+1 to AC.', auto: 'AC' },
+    { name: 'Specialized Design', text: 'Proficiency in one skill and one tool of your choice.', choose: 'one skill (mark it in Skills)' },
+  ],
+};
+// Racial effects the sheet applies automatically
+const RACE_SKILLS = { elf: ['Perception'], 'half-orc': ['Intimidation'], tabaxi: ['Perception', 'Stealth'] };
+const RACE_WEAPONS = { dwarf: ['battleaxe', 'handaxe', 'light-hammer', 'warhammer'] };
+const RACE_AC_BONUS = { warforged: 1 };
+
 const CLASSES = [
   { id:'barbarian', saves:['str','con'], name:'Barbarian', icon:'⚔️', desc:'Rage, Unarmored Defense', hd:12, spellcaster:false,
     weaponProf:'all', statHp:'con', weaponLimit:4,

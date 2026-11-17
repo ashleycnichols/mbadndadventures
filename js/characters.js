@@ -95,7 +95,8 @@ function classDefaultAC(ch) {
 }
 function calcAC(ch) {
   if (!ch?.stats) return 10;
-  return Number.isFinite(+ch.acOverride) && ch.acOverride !== '' && ch.acOverride !== null ? +ch.acOverride : classDefaultAC(ch);
+  if (Number.isFinite(+ch.acOverride) && ch.acOverride !== '' && ch.acOverride !== null) return +ch.acOverride;
+  return classDefaultAC(ch) + (RACE_AC_BONUS[ch.race] || 0);
 }
 function editAC(id) {
   const c = state.characters.find(x => x.id === id);
@@ -116,7 +117,8 @@ function backgroundSkills(ch) {
   const bg = BACKGROUNDS.find(b => b.id === ch?.background);
   return bg ? bg.desc.split(',').map(x => x.trim()) : [];
 }
-function isSkillProficient(ch, skill) { return backgroundSkills(ch).includes(skill) || (ch?.skillProfs || []).includes(skill); }
+function raceSkills(ch) { return RACE_SKILLS[ch?.race] || []; }
+function isSkillProficient(ch, skill) { return backgroundSkills(ch).includes(skill) || raceSkills(ch).includes(skill) || (ch?.skillProfs || []).includes(skill); }
 function skillBonus(ch, skill) {
   const sk = SKILL_LIST.find(s => s.name === skill);
   return abilityMod(ch, sk?.ab) + (isSkillProficient(ch, skill) ? proficiencyBonus(ch) : 0);
@@ -124,7 +126,7 @@ function skillBonus(ch, skill) {
 function passivePerception(ch) { return 10 + skillBonus(ch, 'Perception'); }
 function toggleSkillProf(id, skill) {
   const c = state.characters.find(x => x.id === id);
-  if (!c || backgroundSkills(c).includes(skill)) return; // background skills are always on
+  if (!c || backgroundSkills(c).includes(skill) || raceSkills(c).includes(skill)) return; // background and race skills are always on
   c.skillProfs = c.skillProfs || [];
   c.skillProfs = c.skillProfs.includes(skill) ? c.skillProfs.filter(s => s !== skill) : [...c.skillProfs, skill];
   save(); refreshSheets();
@@ -140,7 +142,7 @@ function spellcastingMod(ch) {
 function weaponAttack(ch, w) {
   const str = abilityMod(ch, 'str'), dex = abilityMod(ch, 'dex');
   const mod = w.finesse ? Math.max(str, dex) : w.range === 'Ranged' ? dex : str;
-  const proficient = classCanUseWeapon(ch.class, w);
+  const proficient = classCanUseWeapon(ch.class, w) || (RACE_WEAPONS[ch.race] || []).includes(w.id);
   const atk = mod + (proficient ? proficiencyBonus(ch) : 0);
   const dmg = w.dmg + (mod ? (mod > 0 ? '+' : '−') + Math.abs(mod) : '');
   return { atk, dmg, proficient };

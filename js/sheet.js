@@ -268,8 +268,8 @@ function renderSheet(c) {
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.15rem">
             ${SKILL_LIST.map(sk => {
               const prof = isSkillProficient(c, sk.name);
-              const fromBg = backgroundSkills(c).includes(sk.name);
-              return `<div onclick="toggleSkillProf('${c.id}','${sk.name}')" title="${fromBg ? 'Proficient from background' : prof ? 'Proficient. Click to remove' : 'Click to mark proficient'}" style="display:flex;justify-content:space-between;align-items:center;font-size:0.82rem;padding:0.1rem 0.25rem;cursor:${fromBg ? 'default' : 'pointer'}">
+              const fromBg = backgroundSkills(c).includes(sk.name) || raceSkills(c).includes(sk.name);
+              return `<div onclick="toggleSkillProf('${c.id}','${sk.name}')" title="${backgroundSkills(c).includes(sk.name) ? 'Proficient from background' : raceSkills(c).includes(sk.name) ? 'Proficient from race' : prof ? 'Proficient. Click to remove' : 'Click to mark proficient'}" style="display:flex;justify-content:space-between;align-items:center;font-size:0.82rem;padding:0.1rem 0.25rem;cursor:${fromBg ? 'default' : 'pointer'}">
                 <span style="color:var(--text-main)"><span style="color:${prof ? 'var(--gold)' : 'var(--border)'}">${prof ? '●' : '○'}</span> ${sk.name} <span style="color:var(--text-muted);font-size:0.72rem">(${shortLabels[sk.ab]})</span></span>
                 <span style="font-family:var(--font-ui);color:var(--text-main);font-size:0.8rem">${fmtMod(skillBonus(c, sk.name))}</span>
               </div>`;
@@ -336,10 +336,14 @@ function renderSheet(c) {
             if (!group.length) return '';
             return `<div style="margin-bottom:0.5rem">
               <div style="font-size:0.72rem;font-family:var(--font-ui);color:var(--gold-text);margin-bottom:0.2rem">Level ${lvl}</div>
-              ${group.map(sp => `<div onclick="showSheetSpellDetail('${sp.id}','${c.id}')" style="display:flex;justify-content:space-between;font-size:0.85rem;padding:0.2rem 0.25rem;border-bottom:1px solid var(--parchment-deeper);cursor:pointer;border-radius:2px;transition:background 0.12s" onmouseover="this.style.background='rgba(201,148,42,0.1)'" onmouseout="this.style.background=''">
-                <span>${sp.name}</span>
-                <span style="font-size:0.75rem;color:var(--text-muted);font-style:italic">${sp.school}</span>
-              </div>`).join('')}
+              ${group.map(sp => {
+                const canCast = castOptions(c, sp).length > 0;
+                return `<div onclick="showSheetSpellDetail('${sp.id}','${c.id}')" style="display:flex;align-items:center;gap:0.5rem;font-size:0.9rem;padding:0.25rem 0.25rem;border-bottom:1px solid var(--parchment-deeper);cursor:pointer;border-radius:2px;transition:background 0.12s" onmouseover="this.style.background='rgba(201,148,42,0.1)'" onmouseout="this.style.background=''">
+                <span style="flex:1">${sp.name}${/concentration/i.test(sp.duration || '') ? ' <span title="Concentration" style="font-size:0.75rem;color:var(--blue)">◆</span>' : ''}</span>
+                <span style="font-size:0.8rem;color:var(--text-muted);font-style:italic">${sp.school}</span>
+                <button onclick="event.stopPropagation();castSpell('${c.id}','${sp.id}')" ${canCast ? '' : 'disabled'} title="${canCast ? 'Cast using the lowest free slot' : 'No slots of this level or higher left'}" style="border:1px solid ${canCast ? 'var(--gold)' : 'var(--border)'};background:${canCast ? 'rgba(201,148,42,0.12)' : 'none'};color:${canCast ? 'var(--gold-text)' : 'var(--text-muted)'};border-radius:2px;padding:0.1rem 0.5rem;font-family:var(--font-ui);font-size:0.8rem;cursor:${canCast ? 'pointer' : 'default'}">Cast</button>
+              </div>`;
+              }).join('')}
             </div>`;
           }).join('')}
           ${!leveledSpells.length ? `<div style="font-size:0.8rem;color:var(--text-muted);font-style:italic">No spells known yet.</div>` : ''}
@@ -355,6 +359,9 @@ function renderSheet(c) {
           </div>
         </div>
 
+        <!-- RACIAL TRAITS -->
+        ${racialTraitsBlock(c)}
+
         <!-- BACKSTORY & NOTES -->
         ${c.backstory || c.notes ? `
         <div style="background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:1rem">
@@ -367,6 +374,35 @@ function renderSheet(c) {
   </div>`;
 }
 
+
+// Racial traits, with what the sheet already includes in its numbers
+function racialTraitsBlock(c) {
+  const traits = RACE_TRAITS[c.race];
+  const race = RACES.find(r => r.id === c.race);
+  if (!traits || !race) return '';
+  const bonusApplied = !!c.racialApplied;
+  return `<div style="background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:1rem">
+    <div style="font-family:var(--font-ui);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.4rem">${esc(race.name)} Traits</div>
+    <div style="font-size:0.85rem;color:var(--text-muted);font-style:italic;margin-bottom:0.6rem">
+      <span style="color:var(--green-health);font-style:normal">✓ Included</span> means the sheet's numbers already count it.
+      <span style="color:var(--amber);font-style:normal">✎ Your choice</span> means you add it yourself with Edit.
+    </div>
+    ${traits.map(t => {
+      const included = t.auto && (t.auto.startsWith('ability') ? bonusApplied : true);
+      return `<div style="padding:0.35rem 0;border-bottom:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;gap:0.5rem;flex-wrap:wrap">
+          <strong style="font-size:0.92rem">${t.name}</strong>
+          <span style="font-size:0.8rem;display:flex;gap:0.5rem;flex-wrap:wrap">
+            ${included ? `<span style="color:var(--green-health)" title="Already in the sheet's numbers">✓ Included in ${t.auto}</span>` : ''}
+            ${t.auto && !included ? `<span style="color:var(--amber)">Not yet applied to this character</span>` : ''}
+            ${t.choose ? `<span style="color:var(--amber)">✎ Your choice: ${t.choose}</span>` : ''}
+          </span>
+        </div>
+        <div style="font-size:0.88rem;color:var(--text-muted);line-height:1.4">${t.text}</div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
 
 function toggleInspiration(id) {
   const c = state.characters.find(x => x.id === id);
@@ -572,6 +608,42 @@ function confirmAddSpell(charId, spellId) {
   refreshSheets();
 }
 
+// ---- Casting: spends the right slot automatically ----
+// Slot levels this spell can be cast with that still have a slot free
+function castOptions(c, sp) {
+  if (!c || !sp || sp.level === 0) return [];
+  const cls = CLASSES.find(cl => cl.id === c.class);
+  const slots = cls?.spellSlots?.[Math.min(c.level - 1, 19)] || [];
+  return slots.map((total, i) => ({ level: i + 1, left: (total || 0) - (c.usedSlots?.[i + 1] || 0) }))
+    .filter(o => o.level >= sp.level && o.left > 0);
+}
+
+function castSpell(charId, spellId, atLevel) {
+  const c = state.characters.find(x => x.id === charId);
+  const sp = SPELLS.find(s => s.id === spellId);
+  if (!c || !sp) return;
+  const concentrates = /concentration/i.test(sp.duration || '');
+  let msg;
+  if (sp.level === 0) {
+    msg = `${sp.name}: cantrips don't use spell slots.`;
+  } else {
+    const opts = castOptions(c, sp);
+    if (!opts.length) { showLimitWarning(`No spell slots of level ${sp.level} or higher left. A long rest restores them.`); return; }
+    const use = (atLevel && opts.find(o => o.level === atLevel)) || opts[0];
+    c.usedSlots = c.usedSlots || {};
+    c.usedSlots[use.level] = (c.usedSlots[use.level] || 0) + 1;
+    msg = `Cast ${sp.name}${use.level > sp.level ? ` at level ${use.level}` : ''}. ${use.left - 1} level-${use.level} slot${use.left - 1 === 1 ? '' : 's'} left.`;
+  }
+  if (concentrates) {
+    const prev = c.concentration && c.concentration !== sp.id ? concentrationName(c) : null;
+    c.concentration = sp.id;
+    msg += prev ? ` Concentration on ${prev} ends; now concentrating on ${sp.name}.` : ` Concentrating on ${sp.name}.`;
+  }
+  document.getElementById('sheet-spell-modal')?.remove();
+  showLimitWarning(msg);
+  save(); refreshSheets();
+}
+
 // Remove a spell (for example, changing prepared spells after a long rest)
 function removeSpell(charId, spellId) {
   const c = state.characters.find(x => x.id === charId);
@@ -637,6 +709,16 @@ function showSheetSpellDetail(id, charId) {
       </div>
       <p style="font-style:italic;color:var(--text-muted);font-size:0.9rem;margin-bottom:0.75rem;line-height:1.5">${sp.desc||''}</p>
       <p style="font-size:0.95rem;line-height:1.7;color:var(--text-main)">${sp.detail||''}</p>
+      ${(() => {
+        const ch = charId && state.characters.find(x => x.id === charId);
+        if (!ch || !ch.spells.includes(id) || sp.level === 0) return '';
+        const opts = castOptions(ch, sp);
+        if (!opts.length) return `<div style="margin-top:1rem;font-size:0.9rem;color:var(--blood)">No spell slots of level ${sp.level} or higher left.</div>`;
+        return `<div style="margin-top:1rem;padding-top:0.75rem;border-top:1px solid var(--border)">
+          <div style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:0.4rem">Cast using a slot of level</div>
+          <div style="display:flex;flex-wrap:wrap;gap:0.4rem">${opts.map(o => `<button onclick="castSpell('${charId}','${id}',${o.level})" style="border:1px solid var(--gold);background:rgba(201,148,42,0.12);color:var(--gold-text);border-radius:2px;padding:0.35rem 0.7rem;font-family:var(--font-ui);font-size:0.95rem;cursor:pointer">${o.level}${o.level > sp.level ? ' (upcast)' : ''} · ${o.left} left</button>`).join('')}</div>
+        </div>`;
+      })()}
       <div style="margin-top:1.25rem;display:flex;justify-content:space-between;gap:0.5rem">
         ${charId && state.characters.find(x => x.id === charId)?.spells.includes(id) ? `<button class="btn-secondary btn-sm" style="color:var(--blood);border-color:var(--blood)" onclick="removeSpell('${charId}','${id}')">Remove from sheet</button>` : '<span></span>'}
         <button class="btn-secondary btn-sm" onclick="document.getElementById('sheet-spell-modal').remove()">Close</button>
