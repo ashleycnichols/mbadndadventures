@@ -50,7 +50,7 @@
     // The DM clears a move once it is folded into the world, but only if no newer move replaced it
     window.fbClearTokenMove = function(campaignId, tokenId, t) {
       return runTransaction(path(campaignId, 'tokenMoves/' + tokenId), cur => {
-        if (cur && cur._t !== t) return cur;
+        if (cur && cur._t !== t) return; // a newer move arrived: leave it
         return null;
       }).catch(e => console.warn('fbClearTokenMove:', e));
     };

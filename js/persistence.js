@@ -213,7 +213,7 @@ function onRemoteChars(chars) {
     incoming.forEach(inc => {
       if (_deletedIds.has(inc.id)) return;
       const local = state.characters.find(c => c.id === inc.id);
-      const localUnsaved = local && _charSnap[inc.id] !== undefined && canonStr(local) !== _charSnap[inc.id];
+      const localUnsaved = local && canWriteChar(local) && _charSnap[inc.id] !== undefined && canonStr(local) !== _charSnap[inc.id];
       if (localUnsaved) {
         next.push(local); // our change is newer; it goes out on the next save
       } else {
