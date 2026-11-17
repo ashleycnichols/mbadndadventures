@@ -8,7 +8,8 @@
 let campaignInfo = {};      // settings of the campaign we're in
 let _campaignList = [];
 let _campaignInfoOff = null;
-const DEFAULT_CAMPAIGNS = [{ id: 'trinitydnd', name: 'Trinity DnD' }];
+// The original campaign keeps its internal id 'trinitydnd' (where its data lives); it's shown as Plexis
+const DEFAULT_CAMPAIGNS = [{ id: 'trinitydnd', name: 'Plexis' }];
 
 function loadCampaignList() {
   return new Promise(resolve => {
@@ -77,15 +78,15 @@ function openCreateCampaign() {
   document.body.appendChild(overlay);
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 
-  // First time: no master passphrase yet. Setting one needs the Trinity DnD DM passphrase.
+  // First time: no master passphrase yet. Setting one needs the Plexis DM passphrase.
   whenFirebaseReady(ready => {
     if (!ready) { ccMsg('Can\'t reach the database right now. Try again when online.', true); return; }
     window.fbGet('meta/_admin').then(admin => {
       if (admin?.hash) return;
       document.getElementById('cc-master-block').innerHTML = `
-        <div style="font-size:0.8rem;color:var(--text-muted);font-style:italic;margin-bottom:0.6rem">First time: choose a master passphrase. You'll need it to create campaigns from now on. To prove it's you, enter the Trinity DnD DM passphrase too.</div>
+        <div style="font-size:0.8rem;color:var(--text-muted);font-style:italic;margin-bottom:0.6rem">First time: choose a master passphrase. You'll need it to create campaigns from now on. To prove it's you, enter the Plexis DM passphrase too.</div>
         <div class="input-group"><label>New master passphrase</label><input class="parchment-input" id="cc-master" type="password"></div>
-        <div class="input-group"><label>Trinity DnD DM passphrase</label><input class="parchment-input" id="cc-legacy" type="password"></div>`;
+        <div class="input-group"><label>Plexis DM passphrase</label><input class="parchment-input" id="cc-legacy" type="password"></div>`;
     });
   }, 5000);
 }
@@ -117,10 +118,11 @@ function createCampaign() {
     return verifyCampaignPass('trinitydnd', legacyInput ? legacyInput.value : '').then(ok => {
       if (!ok) return false;
       return hashPass(master).then(h => window.fbSet('meta/_admin', { hash: h })).then(() =>
-        window.fbSet('campaignIndex/trinitydnd', { name: 'Trinity DnD', createdAt: Date.now() })).then(() => true);
+        window.fbGet('campaignIndex/trinitydnd')).then(existing => existing ? null :
+        window.fbSet('campaignIndex/trinitydnd', { name: 'Plexis', createdAt: Date.now() })).then(() => true);
     });
   }).then(ok => {
-    if (!ok) return fail(legacyInput ? 'The Trinity DnD DM passphrase is incorrect.' : 'Incorrect master passphrase.');
+    if (!ok) return fail(legacyInput ? 'The Plexis DM passphrase is incorrect.' : 'Incorrect master passphrase.');
     return window.fbGet('campaignIndex').then(idx => {
       let id = slugify(name), n = 2;
       while ((idx && idx[id]) || id === 'trinitydnd') id = slugify(name) + '-' + n++;
@@ -144,6 +146,11 @@ function listenCampaignInfo(id) {
     if (!info && state.currentUser?.isDM) {
       // Campaign not listed yet (the original one): add it so it shows at login
       window.fbSet('campaignIndex/' + id, { name: campaignName(id), createdAt: Date.now() });
+    }
+    // One-off rename of the original campaign from its old name
+    if (info && id === 'trinitydnd' && info.name === 'Trinity DnD' && state.currentUser?.isDM) {
+      info = { ...info, name: 'Plexis' };
+      window.fbSet('campaignIndex/' + id, info);
     }
     campaignInfo = info || { name: campaignName(id) };
     applyCampaignInfo();
