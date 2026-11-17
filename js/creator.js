@@ -6,6 +6,7 @@ function openCreator(id) {
   if (id) {
     const c = state.characters.find(x => x.id === id);
     creatorState.draft = JSON.parse(JSON.stringify(c));
+    creatorState.original = JSON.parse(JSON.stringify(c));
     document.getElementById('creator-modal-title').textContent = 'Edit Character';
   } else {
     creatorState.draft = {
@@ -15,6 +16,7 @@ function openCreator(id) {
       spells:[], weapons:[], backstory:'', notes:'',
       maxHp:10, currentHp:10, spellSlots:{}
     };
+    creatorState.original = null;
     document.getElementById('creator-modal-title').textContent = 'Create New Character';
   }
   creatorState.step = 0;
@@ -31,6 +33,7 @@ function editCharacter(id) {
 }
 
 function creatorNext() {
+  saveCreatorFields();
   if (!validateCreatorStep()) return;
   if (creatorState.step < CREATOR_STEPS.length - 1) {
     creatorState.step++;
@@ -41,7 +44,15 @@ function creatorNext() {
 }
 
 function creatorBack() {
+  saveCreatorFields();
   if (creatorState.step > 0) { creatorState.step--; renderCreatorStep(); }
+}
+
+function creatorGoToStep(i) {
+  if (i > creatorState.step) return;
+  saveCreatorFields();
+  creatorState.step = i;
+  renderCreatorStep();
 }
 
 function validateCreatorStep() {
@@ -57,7 +68,7 @@ function renderCreatorStep() {
   // Steps indicators
   let stepsHtml = CREATOR_STEPS.map((s, i) => {
     let cls = i < step ? 'step-indicator done' : i === step ? 'step-indicator active' : 'step-indicator';
-    return `<div class="${cls}" onclick="if(${i}<=${step}){creatorState.step=${i};renderCreatorStep()}">${s}</div>`;
+    return `<div class="${cls}" onclick="creatorGoToStep(${i})">${s}</div>`;
   }).join('');
   document.getElementById('creator-steps').innerHTML = stepsHtml;
 
@@ -232,7 +243,7 @@ function renderCreatorStep() {
           <div><strong>Player:</strong> ${esc(d.player) || '—'}</div>
           <div><strong>Race:</strong> ${getRace(d.race)}</div>
           <div><strong>Class:</strong> ${getClass(d.class)} ${d.level}</div>
-          <div><strong>Background:</strong> ${d.background || '—'}</div>
+          <div><strong>Background:</strong> ${esc(BACKGROUNDS.find(b => b.id === d.background)?.name || d.background) || '—'}</div>
           <div><strong>Max HP:</strong> <span style="color:var(--blood);font-weight:bold">${calcedHp}</span> <span style="font-size:0.8rem;color:var(--text-muted)">(auto-calculated)</span></div>
           <div><strong>Spells:</strong> ${d.spells.length}</div>
           <div><strong>Weapons:</strong> ${d.weapons.length}</div>
@@ -446,48 +457,65 @@ function saveCreatorFields() {
       const v = +document.getElementById('stat-'+s)?.value;
       if (v) d.stats[s] = v;
     });
-    // Auto-calculate HP from class hit die + CON
-    const hp = calcMaxHp(d.class, d.level, d.stats);
-    d.maxHp = hp;
-    d.currentHp = hp;
+    // New characters: HP from class hit die + CON. Edits keep their HP (see saveCharacter).
+    if (!creatorState.editingId) {
+      const hp = calcMaxHp(d.class, d.level, d.stats);
+      d.maxHp = hp;
+      d.currentHp = hp;
+    }
   }
   if (step === 6) {
     d.backstory = document.getElementById('f-backstory')?.value || d.backstory;
     d.notes = document.getElementById('f-notes')?.value || d.notes;
-    // Final recalculation in case level changed
-    const hp = calcMaxHp(d.class, d.level, d.stats);
-    d.maxHp = hp;
-    if (!creatorState.editingId) d.currentHp = hp;
+    if (!creatorState.editingId) {
+      const hp = calcMaxHp(d.class, d.level, d.stats);
+      d.maxHp = hp;
+      d.currentHp = hp;
+    }
   }
 }
+
+// Fields the creator edits. Everything else (HP, slots, conditions, inventory...)
+// comes from the live character, which may have changed while the editor was open.
+const CREATOR_FIELDS = ['name','player','level','race','class','background','stats','spells','weapons','backstory','notes'];
 
 function saveCharacter() {
   saveCreatorFields();
   const d = creatorState.draft;
-  if (!d.id) d.id = 'char_' + Date.now();
-  if (!d.currentHp) d.currentHp = d.maxHp;
-  // Always stamp the correct player name — never allow mismatch
+  // Always stamp the correct player name for players
   if (!state.currentUser?.isDM) d.player = state.currentUser.name;
 
-  const idx = state.characters.findIndex(c => c.id === d.id);
-  if (idx >= 0) state.characters[idx] = d;
-  else state.characters.push(d);
+  let result;
+  const live = creatorState.editingId && state.characters.find(c => c.id === creatorState.editingId);
+  if (live) {
+    const o = creatorState.original;
+    result = JSON.parse(JSON.stringify(live));
+    CREATOR_FIELDS.forEach(k => { result[k] = JSON.parse(JSON.stringify(d[k] ?? null)); });
+    // Adjust HP only for what changed: class or level (recalculate) or CON (modifier x level)
+    const conMod = st => Math.floor(((st?.con || 10) - 10) / 2);
+    let diff = 0;
+    if (result.class !== o.class || result.level !== o.level) {
+      const newMax = calcMaxHp(result.class, result.level, result.stats);
+      diff = newMax - live.maxHp;
+    } else if (conMod(result.stats) !== conMod(o.stats)) {
+      diff = (conMod(result.stats) - conMod(o.stats)) * result.level;
+    }
+    result.maxHp = Math.max(1, live.maxHp + diff);
+    result.currentHp = Math.max(0, Math.min(result.maxHp, live.currentHp + diff));
+  } else {
+    result = d;
+    if (!result.id) result.id = 'char_' + Date.now();
+    if (!result.currentHp) result.currentHp = result.maxHp;
+  }
+  normalizeChar(result);
+
+  const idx = state.characters.findIndex(c => c.id === result.id);
+  if (idx >= 0) state.characters[idx] = result;
+  else state.characters.push(result);
+  if (!state.currentUser?.isDM && !live) localStorage.setItem('chronicler_active_char', result.id);
 
   save();
   closeCreator();
   renderCharacters();
+  refreshSheets();
 }
-
-// Intercept next to save fields before advancing
-const origCreatorNext = creatorNext;
-window.creatorNext = function() {
-  saveCreatorFields();
-  if (!validateCreatorStep()) return;
-  if (creatorState.step < CREATOR_STEPS.length - 1) {
-    creatorState.step++;
-    renderCreatorStep();
-  } else {
-    saveCharacter();
-  }
-};
-

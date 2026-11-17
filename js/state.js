@@ -4,11 +4,9 @@
 let state = {
   currentUser: null, // {name, isDM}
   characters: [],
-  tokens: [],
   mapImg: null,
   gridSize: 50,
   showGrid: true,
-  activeTokenImage: null,
   maps: [], // [{id, name, img, tokens}]
   activeMapId: null,
   tokenLibrary: [], // [{id, name, img}] — reusable token images

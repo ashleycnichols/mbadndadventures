@@ -8,81 +8,19 @@ let pendingTokenImg = null;
 // ============================================================
 // COMBAT SIDEBAR (player map panel)
 // ============================================================
-function mapAdjustHP(id, sign) {
-  const c = state.characters.find(x => x.id === id);
-  if (!c) return;
-  const input = document.getElementById('map-hp-adjust');
-  const amt = input ? +input.value : 0;
-  if (!amt || isNaN(amt)) { showLimitWarning('Enter an amount first'); return; }
-  c.currentHp = Math.max(0, Math.min(c.maxHp + (c.tempHp||0), c.currentHp + sign * amt));
-  if (input) input.value = '';
-  save(); renderCombatSidebar();
-}
-
-function mapToggleSlot(id, spellLevel, slotIndex) {
-  const c = state.characters.find(x => x.id === id);
-  if (!c) return;
-  if (!c.usedSlots) c.usedSlots = {};
-  const cls = CLASSES.find(cl => cl.id === c.class);
-  const lvlIdx = Math.min(c.level - 1, 19);
-  const total = cls?.spellSlots?.[lvlIdx]?.[spellLevel - 1] || 0;
-  const used = c.usedSlots[spellLevel] || 0;
-  if (slotIndex < total - used) {
-    c.usedSlots[spellLevel] = used + 1;
-  } else {
-    c.usedSlots[spellLevel] = Math.max(0, used - 1);
-  }
-  save(); renderCombatSidebar();
-}
-
-function mapUseHitDie(id) {
-  const c = state.characters.find(x => x.id === id);
-  if (!c) return;
-  const cls = CLASSES.find(cl => cl.id === c.class);
-  const hd = cls?.hd || 8;
-  const roll = Math.floor(Math.random() * hd) + 1;
-  const conMod = Math.floor(((c.stats.con||10)-10)/2);
-  const heal = Math.max(1, roll + conMod);
-  c.currentHp = Math.min(c.maxHp, c.currentHp + heal);
-  c.hitDiceUsed = (c.hitDiceUsed||0) + 1;
-  showLimitWarning(`Rolled d${hd}: ${roll} + ${conMod >= 0 ? '+' + conMod : conMod} CON = ${heal} HP`);
-  save(); renderCombatSidebar();
-}
-
-function mapShortRest(id) {
-  const c = state.characters.find(x => x.id === id);
-  if (!c) return;
-  if (c.class === 'warlock') c.usedSlots = {};
-  c.deathSaves = {success:0, fail:0};
-  showLimitWarning('Short rest taken. Warlock slots recovered. Spend hit dice to heal.');
-  save(); renderCombatSidebar();
-}
-
-function mapLongRest(id) {
-  const c = state.characters.find(x => x.id === id);
-  if (!c) return;
-  c.currentHp = c.maxHp;
-  c.tempHp = 0;
-  c.usedSlots = {};
-  c.hitDiceUsed = Math.max(0, (c.hitDiceUsed||0) - Math.max(1, Math.floor(c.level/2)));
-  c.deathSaves = {success:0, fail:0};
-  showLimitWarning('Long rest! HP and spell slots fully restored.');
-  save(); renderCombatSidebar();
-}
-
-function mapToggleDeathSave(id, type, index) {
-  const c = state.characters.find(x => x.id === id);
-  if (!c) return;
-  if (!c.deathSaves) c.deathSaves = {success:0, fail:0};
-  c.deathSaves[type] = c.deathSaves[type] === index + 1 ? index : index + 1;
-  save(); renderCombatSidebar();
-}
+// The sidebar reuses the sheet's actions; refreshSheets() redraws the sidebar
+function mapAdjustHP(id, sign) { sheetAdjustHP(id, sign, 'map-hp-adjust'); }
+function mapToggleSlot(id, spellLevel, slotIndex) { toggleSlot(id, spellLevel, slotIndex); }
+function mapUseHitDie(id) { useHitDie(id); }
+function mapShortRest(id) { doShortRest(id); }
+function mapLongRest(id) { doLongRest(id); }
+function mapToggleDeathSave(id, type, index) { toggleDeathSave(id, type, index); }
 
 function renderCombatSidebar() {
   const container = document.getElementById('combat-sidebar-content');
   if (!container) return;
 
-  const c = state.characters.find(ch => ch.player === state.currentUser?.name);
+  const c = myActiveChar();
 
   if (!c) {
     container.innerHTML = `<div style="padding:1rem;font-size:0.8rem;color:var(--text-muted);font-style:italic;font-family:'Crimson Pro',serif">
@@ -276,14 +214,14 @@ function renderCombatSidebar() {
     html += `<div style="${sec}">
       <div style="${label}">Conditions</div>
       <div style="display:flex;flex-wrap:wrap;gap:0.2rem">
-        ${c.conditions.map(cond => `<span onclick="removeCondition('${c.id}','${cond}'); renderCombatSidebar();" style="font-size:0.65rem;background:rgba(139,26,26,0.12);border:1px solid var(--blood);color:var(--blood);padding:0.1rem 0.3rem;border-radius:2px;cursor:pointer" title="Click to remove">${cond} ✕</span>`).join('')}
+        ${c.conditions.map(cond => `<span onclick="removeCondition('${c.id}','${cond}')" style="font-size:0.65rem;background:rgba(139,26,26,0.12);border:1px solid var(--blood);color:var(--blood);padding:0.1rem 0.3rem;border-radius:2px;cursor:pointer" title="Click to remove">${cond} ✕</span>`).join('')}
       </div>
     </div>`;
   }
 
   // ── Grid toggle at bottom ──
   html += `<div style="padding:0.75rem;display:flex;align-items:center;gap:0.4rem">
-    <input type="checkbox" id="grid-toggle-player" onchange="toggleGrid()" ${state.showGrid ? 'checked' : ''} style="cursor:pointer">
+    <input type="checkbox" id="grid-toggle-player" onchange="toggleGrid(this)" ${effectiveShowGrid() ? 'checked' : ''} style="cursor:pointer">
     <label for="grid-toggle-player" style="font-family:'Cinzel',serif;font-size:0.7rem;color:var(--text-muted);cursor:pointer">Show Grid</label>
   </div>`;
 
@@ -306,7 +244,10 @@ function migrateTokenCoords(tokens) {
   });
 }
 
+let _mapInited = false;
 function initMap() {
+  if (_mapInited) return; // set up once; a second call would double every drag handler
+  _mapInited = true;
   canvas = document.getElementById('map-canvas');
   ctx = canvas.getContext('2d');
 
@@ -363,15 +304,8 @@ function loadMapImage(evt) {
         mapImage = img;
         redrawMap();
         renderMapTabs();
-        // Suppress remote world updates for 10s — map uploads are large and slow
-        _suppressRemoteUntil = Date.now() + 10000;
-        // Flush immediately, no debounce — too important to risk a race condition
-        clearTimeout(_saveDebounce);
-        localStorage.setItem('chronicler_v2', JSON.stringify(buildSaveData()));
-        if (state.syncEnabled && state.campaignId && state.currentUser?.isDM) {
-          window.fbSaveWorld && window.fbSaveWorld(state.campaignId, buildWorldData())
-            .then(() => { _suppressRemoteUntil = Date.now() + 1000; });
-        }
+        // Send straight away: map uploads are large and shouldn't wait
+        saveNow();
       };
       img.src = compressed;
     });
@@ -445,14 +379,8 @@ function switchMap(id) {
     mapImage = null;
     redrawMap();
   }
-  // Suppress for 8s and flush immediately — activeMapId must reach Firebase before world listener echoes back
-  _suppressRemoteUntil = Date.now() + 8000;
-  clearTimeout(_saveDebounce);
-  localStorage.setItem('chronicler_v2', JSON.stringify(buildSaveData()));
-  if (state.syncEnabled && state.campaignId && state.currentUser?.isDM) {
-    window.fbSaveWorld && window.fbSaveWorld(state.campaignId, buildWorldData())
-      .then(() => { _suppressRemoteUntil = Date.now() + 1000; });
-  }
+  // Send straight away so players follow the DM to the new map
+  saveNow();
   renderMapTabs();
   renderTokenList();
 }
@@ -460,13 +388,10 @@ function switchMap(id) {
 function deleteMap(id) {
   if (state.maps.length <= 1) { showLimitWarning("Can't delete the last map."); return; }
   if (!confirm(`Delete "${state.maps.find(m=>m.id===id)?.name}"? This cannot be undone.`)) return;
+  // Move off the map first, so its tokens are filed under it and not under the next map
+  if (state.activeMapId === id) switchMap(state.maps.find(m => m.id !== id).id);
   state.maps = state.maps.filter(m => m.id !== id);
-  if (state.activeMapId === id) {
-    state.activeMapId = state.maps[0].id;
-    switchMap(state.activeMapId);
-  }
-  _suppressRemoteUntil = Date.now() + 3000;
-  save();
+  saveNow();
   renderMapTabs();
 }
 
@@ -609,7 +534,6 @@ function generatePlayerTokens() {
   }
 
   active.tokens = mapState.tokens;
-  _suppressRemoteUntil = Date.now() + 3000;
   save();
   redrawMap();
   renderTokenList();
@@ -642,16 +566,27 @@ function addToken() {
   document.getElementById('token-img-input').value = '';
   hideTokenImgPreview();
   document.querySelectorAll('.lib-token-btn').forEach(b => b.style.outline = 'none');
-  _suppressRemoteUntil = Date.now() + 3000;
   save();
   redrawMap();
   renderTokenList();
 }
 
-function toggleGrid() {
-  state.showGrid = document.getElementById('grid-toggle').checked;
+// DM: grid on/off for everyone. Player: a view setting for this device only.
+function toggleGrid(el) {
+  if (state.currentUser?.isDM) {
+    state.showGrid = document.getElementById('grid-toggle').checked;
+    save();
+  } else {
+    const on = (el || document.getElementById('grid-toggle-player')).checked;
+    localStorage.setItem('chronicler_player_grid', on ? 'on' : 'off');
+  }
   redrawMap();
-  save();
+}
+
+function effectiveShowGrid() {
+  if (state.currentUser?.isDM) return state.showGrid;
+  const pref = localStorage.getItem('chronicler_player_grid');
+  return pref === 'on' ? true : pref === 'off' ? false : state.showGrid;
 }
 
 function redrawMap() {
@@ -674,7 +609,7 @@ function redrawMap() {
   }
 
   // Grid
-  if (state.showGrid) {
+  if (effectiveShowGrid()) {
     ctx.strokeStyle = 'rgba(201,148,42,0.3)';
     ctx.lineWidth = 1;
     for (let x = 0; x < canvas.width; x += gs) {
@@ -721,8 +656,11 @@ function drawToken(t, gs) {
 
   if (t.img) {
     // Draw image in circle
-    const cached = tokenImgCache[t.id] || (tokenImgCache[t.id] = new Image());
-    if (!cached.src && t.img) {
+    let cached = tokenImgCache[t.id];
+    if (!cached || cached._src !== t.img) {
+      // New token or changed image (for example a new portrait)
+      cached = tokenImgCache[t.id] = new Image();
+      cached._src = t.img;
       cached.onload = () => redrawMap();
       cached.src = t.img;
     }
@@ -826,8 +764,6 @@ function onMapMouseUp() {
   if (mapState.dragging) {
     const t = mapState.dragging;
     if (state.currentUser?.isDM) {
-      // DM writes full world
-      _suppressRemoteUntil = Date.now() + 3000;
       save();
     } else {
       // Player writes just their token position to tokenMoves
@@ -904,8 +840,7 @@ function toggleTokenVisibility(id) {
     t.hidden = !t.hidden;
     const activeMap = state.maps.find(m => m.id === state.activeMapId);
     if (activeMap) activeMap.tokens = mapState.tokens;
-    _suppressRemoteUntil = Date.now() + 3000;
-    save(); redrawMap();
+      save(); redrawMap();
   }
 }
 
@@ -913,7 +848,6 @@ function removeToken(id) {
   mapState.tokens = mapState.tokens.filter(x => x.id !== id);
   const activeMap = state.maps.find(m => m.id === state.activeMapId);
   if (activeMap) activeMap.tokens = mapState.tokens;
-  _suppressRemoteUntil = Date.now() + 3000;
   save(); redrawMap();
 }
 

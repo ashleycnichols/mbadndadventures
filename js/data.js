@@ -101,7 +101,7 @@ function setSubclass(charId, value) {
   if (!ch) return;
   ch.subclass = value;
   save();
-  renderMySheet();
+  refreshSheets();
 }
 
 // Weapon proficiency checker: returns true if class can use weapon

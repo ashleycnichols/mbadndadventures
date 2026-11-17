@@ -15,9 +15,7 @@ function renderPartyPanel() {
   html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem">';
 
   state.characters.forEach(ch => {
-    if (!ch.usedSlots) ch.usedSlots = {};
-    if (!ch.conditions) ch.conditions = [];
-    if (!ch.exhaustion) ch.exhaustion = 0;
+    normalizeChar(ch);
 
     const cls = CLASSES.find(cl => cl.id === ch.class);
     const race = RACES.find(r => r.id === ch.race);
@@ -91,46 +89,13 @@ function openDMSheet(charId) {
 function renderDMSheet(charId) {
   const c = state.characters.find(ch => ch.id === charId);
   const container = document.getElementById('party-content');
-  if (!c || !container) return;
-
-  // Ensure default fields
-  if (!c.usedSlots) c.usedSlots = {};
-  if (!c.tempHp) c.tempHp = 0;
-  if (!c.deathSaves) c.deathSaves = {success:0, fail:0};
-  if (!c.hitDiceUsed) c.hitDiceUsed = 0;
-  if (!Array.isArray(c.spells)) c.spells = [];
-  if (!Array.isArray(c.weapons)) c.weapons = [];
-  if (!c.stats) c.stats = {str:10,dex:10,con:10,int:10,wis:10,cha:10};
-  if (c.inventory === undefined) c.inventory = STARTING_EQUIPMENT[c.class] || 'Explorer pack, 10gp';
-  if (!c.conditions) c.conditions = [];
-  if (!c.exhaustion) c.exhaustion = 0;
+  if (!container) return;
+  if (!c) { backToPartyOverview(); return; } // deleted while open
 
   const backBtn = `<div style="max-width:900px;margin:0 auto;padding:1rem 1rem 0">
     <button class="btn-secondary btn-sm" onclick="backToPartyOverview()" style="margin-bottom:0.75rem">← Back to Party</button>
   </div>`;
-
-  // Temporarily swap sheet-content div into party-content, render, extract
-  const orig = document.getElementById('sheet-content');
-  orig.id = '_sheet_hidden';
-  const tmp = document.createElement('div');
-  tmp.id = 'sheet-content';
-  document.body.appendChild(tmp);
-
-  // Override to render this char specifically
-  const savedUser = state.currentUser;
-  // Temporarily make DM "own" this character for sheet rendering
-  const savedChars = state.characters;
-  state.characters = [c];
-  state.currentUser = { name: c.player || 'Dungeon Master', isDM: false };
-  renderMySheet();
-  const sheetHtml = tmp.innerHTML;
-  state.characters = savedChars;
-  state.currentUser = savedUser;
-
-  tmp.remove();
-  orig.id = 'sheet-content';
-
-  container.innerHTML = backBtn + sheetHtml;
+  container.innerHTML = backBtn + renderSheet(c);
 }
 
 function backToPartyOverview() {

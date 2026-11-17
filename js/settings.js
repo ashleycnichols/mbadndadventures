@@ -7,50 +7,74 @@ function saveDMPass() {
   const msg = document.getElementById('settings-msg');
   if (!p) { msg.style.color='var(--blood)'; msg.textContent = 'Enter a passphrase.'; return; }
   if (p !== c) { msg.style.color='var(--blood)'; msg.textContent = 'Passphrases do not match.'; return; }
-  setDMPass(p);
-  msg.style.color = 'var(--green-health)';
-  msg.textContent = 'Passphrase saved!';
+  setDMPass(p).then(() => {
+    msg.style.color = 'var(--green-health)';
+    msg.textContent = 'Passphrase saved!';
+  });
   document.getElementById('new-dm-pass').value = '';
   document.getElementById('confirm-dm-pass').value = '';
 }
 
+// Full backup: every character, map, token and library image
 function exportData() {
   const data = {
-    characters: state.characters,
-    tokens: mapState.tokens,
-    mapImg: state.mapImg,
-    gridSize: state.gridSize,
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    characters: buildCharactersKeyed(),
+    world: buildWorldData(),
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'chronicler-campaign.json';
+  a.download = 'chronicler-backup-' + new Date().toISOString().slice(0, 10) + '.json';
   a.click();
 }
 
+// Restore a backup, replacing the campaign for everyone (DM only)
 function importData(evt) {
-  const file = evt.target.files[0];
+  const input = evt.target;
+  const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
+    input.value = '';
+    let chars, world;
     try {
       const d = JSON.parse(e.target.result);
-      if (d.characters) state.characters = d.characters;
-      if (d.tokens) mapState.tokens = d.tokens;
-      if (d.mapImg) { state.mapImg = d.mapImg; const img = new Image(); img.onload=()=>{mapImage=img;redrawMap();}; img.src=d.mapImg; }
-      if (d.gridSize) state.gridSize = d.gridSize;
-      save();
-      renderCharacters();
-      redrawMap();
-      alert('Campaign data imported!');
-    } catch(err) { alert('Error importing data: ' + err.message); }
+      if (d.version === 2) {
+        chars = Object.values(d.characters || {});
+        world = d.world || {};
+      } else {
+        // Older single-map export
+        chars = Array.isArray(d.characters) ? d.characters : Object.values(d.characters || {});
+        const hasMap = d.mapImg || (d.tokens && d.tokens.length);
+        world = {
+          maps: hasMap ? [{ id: 'map_' + Date.now(), name: 'Imported map', img: d.mapImg || null, tokens: d.tokens || [] }] : [],
+          gridSize: d.gridSize || 50, showGrid: true, tokenLibrary: [],
+        };
+      }
+    } catch(err) { alert('That file isn\'t a Chronicler backup: ' + err.message); return; }
+    const mapCount = (Array.isArray(world.maps) ? world.maps : Object.values(world.maps || {})).length;
+    if (!confirm(`Replace the whole campaign for everyone with this backup?\n\n${chars.length} characters, ${mapCount} maps.\n\nThis cannot be undone. Export a backup first if you might want the current state back.`)) return;
+
+    const keep = new Set(chars.map(c => c.id));
+    state.characters.forEach(c => {
+      if (keep.has(c.id)) return;
+      _deletedIds.add(c.id);
+      delete _charSnap[c.id];
+      if (state.syncEnabled && window.fbDeleteCharacter) window.fbDeleteCharacter(state.campaignId, c.id);
+    });
+    state.characters = chars.filter(c => c && c.id).map(normalizeChar);
+    applyWorld(world);
+    saveNow();
+    _rerender();
+    showLimitWarning('Backup restored for everyone.');
   };
   reader.readAsText(file);
 }
 
 function clearAll() {
-  if (!confirm('Clear ALL campaign data? This cannot be undone.')) return;
-  localStorage.removeItem('chronicler_v2');
+  if (!confirm('Clear the copy stored on this device and log out? Campaign data in the cloud is not affected.')) return;
+  Object.keys(localStorage).filter(k => k.startsWith('chronicler_')).forEach(k => localStorage.removeItem(k));
   location.reload();
 }
-

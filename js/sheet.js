@@ -19,36 +19,61 @@ const STARTING_EQUIPMENT = {
   'blood-hunter': 'Martial weapon, Leather armor, Dungeoneer\'s pack, 10gp',
 };
 
+// Characters belonging to the logged-in player, and the one they're playing now
+function myCharacters() {
+  if (!state.currentUser || state.currentUser.isDM) return [];
+  return state.characters.filter(ch => ch.player === state.currentUser.name);
+}
+function myActiveChar() {
+  const mine = myCharacters();
+  const id = localStorage.getItem('chronicler_active_char');
+  return mine.find(c => c.id === id) || mine[0] || null;
+}
+function setActiveChar(id) {
+  localStorage.setItem('chronicler_active_char', id);
+  refreshSheets();
+}
+
+// Redraw whichever character views are open, after any change
+function refreshSheets(opts = {}) {
+  const typing = opts.skipIfTyping && document.activeElement && ['TEXTAREA','INPUT','SELECT'].includes(document.activeElement.tagName);
+  const isActive = id => document.getElementById(id)?.classList.contains('active');
+  if (!state.currentUser?.isDM && isActive('panel-map')) renderCombatSidebar();
+  if (typing) return;
+  if (isActive('panel-sheet')) renderMySheet();
+  if (isActive('panel-party')) state.dmPartyCharId ? renderDMSheet(state.dmPartyCharId) : renderPartyPanel();
+}
+
 function renderMySheet() {
   const container = document.getElementById('sheet-content');
-  if (!container) { console.error('renderMySheet: sheet-content element not found'); return; }
+  if (!container) return;
   if (!state.currentUser) { container.innerHTML = '<div class="empty-state"><p>Not logged in.</p></div>'; return; }
-
-  const c = state.currentUser.isDM
-    ? state.characters[0]
-    : state.characters.find(ch => ch.player === state.currentUser.name);
-
+  if (state.currentUser.isDM) {
+    container.innerHTML = '<div class="empty-state"><p>Open a character from the Party tab.</p></div>';
+    return;
+  }
+  const c = myActiveChar();
   if (!c) {
     container.innerHTML = `<div class="empty-state">
-      <p>No character found for <strong>${state.currentUser.name}</strong>.</p>
-      <p style="font-size:0.85rem;color:var(--text-muted);margin-top:0.5rem">Characters in campaign: ${state.characters.map(ch => ch.player || 'unknown').join(', ') || 'none'}</p>
+      <p>No character found for <strong>${esc(state.currentUser.name)}</strong>.</p>
+      <p style="font-size:0.85rem;color:var(--text-muted);margin-top:0.5rem">Characters in campaign: ${esc(state.characters.map(ch => ch.player || 'unknown').join(', ')) || 'none'}</p>
       <p style="margin-top:1rem"><button class="btn-primary btn-gold" style="width:auto;padding:0.7rem 1.5rem" onclick="openCreator()">Create Your Character</button></p>
     </div>`;
     return;
   }
+  const mine = myCharacters();
+  const picker = mine.length > 1 ? `<div style="max-width:900px;margin:0 auto;padding:1rem 1rem 0;display:flex;align-items:center;gap:0.5rem">
+      <span style="font-family:'Cinzel',serif;font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em">Playing as</span>
+      <select onchange="setActiveChar(this.value)" style="padding:0.3rem 0.5rem;border:1px solid var(--border);background:var(--parchment);border-radius:2px;font-family:'Cinzel',serif;font-size:0.85rem">
+        ${mine.map(ch => `<option value="${ch.id}" ${ch.id === c.id ? 'selected' : ''}>${esc(ch.name) || 'Unnamed'}</option>`).join('')}
+      </select>
+    </div>` : '';
+  container.innerHTML = picker + renderSheet(c);
+}
 
-  // Ensure new fields exist
-  if (!c.usedSlots) c.usedSlots = {};
-  if (!c.tempHp) c.tempHp = 0;
-  if (!c.deathSaves) c.deathSaves = {success:0, fail:0};
-  if (!c.hitDiceUsed) c.hitDiceUsed = 0;
-  if (c.inventory === undefined) c.inventory = STARTING_EQUIPMENT[c.class] || 'Explorer\'s pack, 10gp';
-  if (!Array.isArray(c.spells)) c.spells = [];
-  if (!Array.isArray(c.weapons)) c.weapons = [];
-  if (!c.stats) c.stats = {str:10,dex:10,con:10,int:10,wis:10,cha:10};
-  if (!c.conditions) c.conditions = [];
-  if (!c.exhaustion) c.exhaustion = 0;
-
+// Full character sheet HTML, used by My Sheet and by the DM's Party tab
+function renderSheet(c) {
+  normalizeChar(c);
   const race = RACES.find(r => r.id === c.race);
   const cls = CLASSES.find(cl => cl.id === c.class);
   const bg = BACKGROUNDS.find(b => b.id === c.background);
@@ -107,7 +132,7 @@ function renderMySheet() {
 
   const CONDITIONS = ['Blinded','Charmed','Deafened','Frightened','Grappled','Incapacitated','Invisible','Paralyzed','Petrified','Poisoned','Prone','Restrained','Stunned','Unconscious'];
 
-  container.innerHTML = `
+  return `
   <div style="max-width:900px;margin:0 auto;padding:1rem">
     <!-- HEADER -->
     <div style="background:var(--parchment-dark);border:2px solid var(--gold);border-radius:2px;padding:1rem 1.5rem;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem">
@@ -170,7 +195,7 @@ function renderMySheet() {
         <div style="background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:1rem">
           <div style="font-family:'Cinzel',serif;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.5rem">Hit Points</div>
           <div style="display:flex;align-items:baseline;gap:0.5rem;margin-bottom:0.4rem">
-            <span id="hp-display" style="font-family:'Cinzel Decorative',serif;font-size:2.5rem;color:${hpColor};line-height:1">${c.currentHp}</span>
+            <span id="hp-display-${c.id}" style="font-family:'Cinzel Decorative',serif;font-size:2.5rem;color:${hpColor};line-height:1">${c.currentHp}</span>
             <span style="color:var(--text-muted);font-size:0.9rem">/ ${c.maxHp}</span>
             ${c.tempHp > 0 ? `<span style="font-size:0.8rem;color:#4a7ca5;margin-left:0.25rem">(+${c.tempHp} temp)</span>` : ''}
           </div>
@@ -180,8 +205,8 @@ function renderMySheet() {
             <button class="btn-secondary btn-sm" style="color:var(--blood);border-color:var(--blood)" onclick="sheetAdjustHP('${c.id}',-1)">− Damage</button>
           </div>
           <div style="display:flex;gap:0.4rem;align-items:center">
-            <input type="number" id="hp-adjust" min="1" placeholder="Amount" style="flex:1;padding:0.3rem 0.5rem;border:1px solid var(--parchment-deeper);border-radius:2px;font-size:0.85rem;background:rgba(255,255,255,0.5);font-family:'Crimson Pro',serif">
-            <input type="number" id="temp-hp-input" min="0" placeholder="Temp HP" style="flex:1;padding:0.3rem 0.5rem;border:1px solid var(--parchment-deeper);border-radius:2px;font-size:0.85rem;background:rgba(255,255,255,0.5);font-family:'Crimson Pro',serif" oninput="setTempHP('${c.id}',this.value)" value="${c.tempHp||''}">
+            <input type="number" id="hp-adjust-${c.id}" min="1" placeholder="Amount" style="flex:1;padding:0.3rem 0.5rem;border:1px solid var(--parchment-deeper);border-radius:2px;font-size:0.85rem;background:rgba(255,255,255,0.5);font-family:'Crimson Pro',serif">
+            <input type="number" id="temp-hp-input-${c.id}" min="0" placeholder="Temp HP" style="flex:1;padding:0.3rem 0.5rem;border:1px solid var(--parchment-deeper);border-radius:2px;font-size:0.85rem;background:rgba(255,255,255,0.5);font-family:'Crimson Pro',serif" oninput="setTempHP('${c.id}',this.value)" value="${c.tempHp||''}">
           </div>
         </div>
 
@@ -245,7 +270,7 @@ function renderMySheet() {
           <div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-bottom:0.5rem">
             ${c.conditions.length ? c.conditions.map(cond => `<span style="background:rgba(139,26,26,0.15);border:1px solid var(--blood);border-radius:10px;padding:0.15rem 0.6rem;font-size:0.75rem;font-family:'Cinzel',serif;cursor:pointer" onclick="removeCondition('${c.id}','${cond}')" title="Click to remove">${cond} ✕</span>`).join('') : '<span style="font-size:0.8rem;color:var(--text-muted);font-style:italic">None</span>'}
           </div>
-          <select id="condition-select" style="font-size:0.8rem;padding:0.25rem;border:1px solid var(--border);background:var(--parchment);border-radius:2px;font-family:'Cinzel',serif" onchange="addCondition('${c.id}',this)">
+          <select id="condition-select-${c.id}" style="font-size:0.8rem;padding:0.25rem;border:1px solid var(--border);background:var(--parchment);border-radius:2px;font-family:'Cinzel',serif" onchange="addCondition('${c.id}',this)">
             <option value="">+ Add condition…</option>
             ${CONDITIONS.map(cond => `<option value="${cond}">${cond}</option>`).join('')}
           </select>
@@ -346,9 +371,9 @@ function renderMySheet() {
         <!-- INVENTORY -->
         <div style="background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:1rem">
           <div style="font-family:'Cinzel',serif;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.4rem">Inventory & Equipment</div>
-          <textarea id="inventory-text" style="width:100%;min-height:120px;background:rgba(255,255,255,0.4);border:1px solid var(--parchment-deeper);border-radius:2px;padding:0.5rem;font-family:'Crimson Pro',serif;font-size:0.9rem;color:var(--text-main);resize:vertical;line-height:1.5" onblur="saveInventory('${c.id}',this.value)">${esc(c.inventory)}</textarea>
+          <textarea id="inventory-text-${c.id}" style="width:100%;min-height:120px;background:rgba(255,255,255,0.4);border:1px solid var(--parchment-deeper);border-radius:2px;padding:0.5rem;font-family:'Crimson Pro',serif;font-size:0.9rem;color:var(--text-main);resize:vertical;line-height:1.5" onblur="saveInventory('${c.id}',this.value)">${esc(c.inventory)}</textarea>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.35rem">
-            <span id="inventory-save-status" style="font-size:0.72rem;color:var(--text-muted);font-style:italic"></span>
+            <span id="inventory-save-status-${c.id}" style="font-size:0.72rem;color:var(--text-muted);font-style:italic"></span>
             <button onclick="saveInventoryBtn('${c.id}')" class="btn-primary btn-gold btn-sm" style="width:auto;padding:0.35rem 1rem">💾 Save Inventory</button>
           </div>
         </div>
@@ -371,17 +396,31 @@ function toggleInspiration(id) {
   if (!c) return;
   c.inspiration = !c.inspiration;
   save();
-  renderMySheet();
+  refreshSheets();
   renderCharacters();
 }
-function sheetAdjustHP(id, sign) {
+// Damage comes off temporary HP first; healing stops at max HP
+function applyHpChange(c, sign, amt) {
+  if (sign < 0) {
+    const absorbed = Math.min(c.tempHp || 0, amt);
+    c.tempHp = (c.tempHp || 0) - absorbed;
+    c.currentHp = Math.max(0, c.currentHp - (amt - absorbed));
+  } else {
+    const wasDown = c.currentHp <= 0;
+    c.currentHp = Math.min(c.maxHp, c.currentHp + amt);
+    if (wasDown && c.currentHp > 0) c.deathSaves = { success: 0, fail: 0 };
+  }
+}
+
+function sheetAdjustHP(id, sign, inputId) {
   const c = state.characters.find(x => x.id === id);
   if (!c) return;
-  const amt = +document.getElementById('hp-adjust').value;
-  if (!amt || isNaN(amt)) { showLimitWarning('Enter an amount first'); return; }
-  c.currentHp = Math.max(0, Math.min(c.maxHp + (c.tempHp||0), c.currentHp + sign * amt));
-  document.getElementById('hp-adjust').value = '';
-  save(); renderMySheet();
+  const input = document.getElementById(inputId || ('hp-adjust-' + id));
+  const amt = Math.floor(+(input?.value));
+  if (!amt || amt < 0) { showLimitWarning('Enter an amount first'); return; }
+  applyHpChange(c, sign, amt);
+  if (input) input.value = '';
+  save(); refreshSheets();
 }
 
 function setTempHP(id, val) {
@@ -406,7 +445,7 @@ function toggleSlot(id, spellLevel, slotIndex) {
   } else {
     c.usedSlots[spellLevel] = Math.max(0, used - 1); // recover
   }
-  save(); renderMySheet();
+  save(); refreshSheets();
 }
 
 function toggleDeathSave(id, type, index) {
@@ -414,21 +453,22 @@ function toggleDeathSave(id, type, index) {
   if (!c) return;
   if (!c.deathSaves) c.deathSaves = {success:0,fail:0};
   c.deathSaves[type] = c.deathSaves[type] === index + 1 ? index : index + 1;
-  save(); renderMySheet();
+  save(); refreshSheets();
 }
 
 function useHitDie(id) {
   const c = state.characters.find(x => x.id === id);
   if (!c) return;
+  if ((c.hitDiceUsed || 0) >= c.level) { showLimitWarning('No hit dice left. A long rest recovers some.'); return; }
   const cls = CLASSES.find(cl => cl.id === c.class);
   const hd = cls?.hd || 8;
   const roll = Math.floor(Math.random() * hd) + 1;
   const conMod = Math.floor(((c.stats.con||10)-10)/2);
   const heal = Math.max(1, roll + conMod);
-  c.currentHp = Math.min(c.maxHp, c.currentHp + heal);
+  applyHpChange(c, 1, heal);
   c.hitDiceUsed = (c.hitDiceUsed||0) + 1;
-  showLimitWarning(`Rolled d${hd}: ${roll} + ${conMod} CON = ${heal} HP restored`);
-  save(); renderMySheet();
+  showLimitWarning(`Rolled d${hd}: ${roll} ${conMod >= 0 ? '+' : '−'} ${Math.abs(conMod)} CON = ${heal} HP restored`);
+  save(); refreshSheets();
 }
 
 function addCondition(id, select) {
@@ -439,21 +479,21 @@ function addCondition(id, select) {
   if (!c.conditions) c.conditions = [];
   if (!c.conditions.includes(val)) c.conditions.push(val);
   select.value = '';
-  save(); renderMySheet();
+  save(); refreshSheets();
 }
 
 function removeCondition(id, cond) {
   const c = state.characters.find(x => x.id === id);
   if (!c) return;
   c.conditions = (c.conditions||[]).filter(x => x !== cond);
-  save(); renderMySheet();
+  save(); refreshSheets();
 }
 
 function setExhaustion(id, level) {
   const c = state.characters.find(x => x.id === id);
   if (!c) return;
   c.exhaustion = level;
-  save(); renderMySheet();
+  save(); refreshSheets();
 }
 
 function saveInventory(id, text) {
@@ -464,10 +504,10 @@ function saveInventory(id, text) {
 }
 
 function saveInventoryBtn(id) {
-  const ta = document.getElementById('inventory-text');
+  const ta = document.getElementById('inventory-text-' + id);
   if (!ta) return;
   saveInventory(id, ta.value);
-  const status = document.getElementById('inventory-save-status');
+  const status = document.getElementById('inventory-save-status-' + id);
   if (status) {
     status.textContent = '✓ Saved & synced';
     status.style.color = 'var(--green-health)';
@@ -544,19 +584,19 @@ function confirmAddSpell(charId, spellId) {
   const sp = SPELLS.find(s => s.id === spellId);
   showLimitWarning(`${sp?.name || 'Spell'} added!`);
   document.getElementById('addspell-modal')?.remove();
-  renderMySheet();
+  refreshSheets();
 }
 
 function doShortRest(id) {
   const c = state.characters.find(x => x.id === id);
   if (!c) return;
-  const cls = CLASSES.find(cl => cl.id === c.class);
-  // Warlock recovers all pact magic slots on short rest
+  // Warlocks recover pact magic slots on a short rest
   if (c.class === 'warlock') c.usedSlots = {};
-  // Death saves reset
   c.deathSaves = {success:0, fail:0};
-  showLimitWarning('Short rest complete. Spend Hit Dice to recover HP. Warlock spell slots recovered.');
-  save(); renderMySheet();
+  showLimitWarning(c.class === 'warlock'
+    ? 'Short rest complete. Pact slots recovered. Spend hit dice to recover HP.'
+    : 'Short rest complete. Spend hit dice to recover HP.');
+  save(); refreshSheets();
 }
 
 function doLongRest(id) {
@@ -567,8 +607,10 @@ function doLongRest(id) {
   c.usedSlots = {};
   c.hitDiceUsed = Math.max(0, (c.hitDiceUsed||0) - Math.max(1, Math.floor(c.level/2)));
   c.deathSaves = {success:0, fail:0};
-  showLimitWarning('Long rest complete! HP and spell slots fully restored.');
-  save(); renderMySheet();
+  const hadExhaustion = c.exhaustion > 0;
+  if (hadExhaustion) c.exhaustion -= 1;
+  showLimitWarning('Long rest complete! HP and spell slots restored' + (hadExhaustion ? ', exhaustion reduced by 1.' : '.'));
+  save(); refreshSheets();
 }
 
 // ============================================================

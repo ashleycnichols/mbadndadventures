@@ -36,9 +36,9 @@
       <input class="parchment-input" id="dm-pass-input" type="password" placeholder="Enter passphrase..." onkeydown="if(event.key==='Enter') enterApp()">
     </div>
     <div id="login-error" class="error-msg hidden"></div>
-    <button class="btn-primary btn-gold" onclick="enterApp()">Enter the Chronicle</button>
+    <button class="btn-primary btn-gold" id="enter-btn" onclick="enterApp()">Enter the Chronicle</button>
     <div style="font-size:0.75rem;color:var(--text-muted);text-align:center;margin-top:1rem;font-style:italic">
-      First time as DM? Set a passphrase in Settings after entering as player.
+      DMs can change the passphrase in Settings after logging in.
     </div>
   </div>
 </div>
@@ -123,7 +123,7 @@
               <div id="token-library-section" style="display:none;margin-bottom:0.5rem">
                 <div style="font-family:'Cinzel',serif;font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.35rem">Saved Images</div>
                 <div id="token-library-grid" style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-bottom:0.4rem"></div>
-                <div style="font-size:0.7rem;color:var(--text-muted);font-style:italic">Click to select · Right-click to delete</div>
+                <div style="font-size:0.7rem;color:var(--text-muted);font-style:italic">Click to select · hover and click ✕ to delete</div>
               </div>
               <div id="token-img-preview" style="display:none;margin-bottom:0.4rem;text-align:center">
                 <img id="token-img-preview-img" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid var(--gold)">
@@ -187,7 +187,7 @@
     <div class="panel" id="panel-settings">
       <div class="char-sheet" style="max-width:500px">
         <div class="section-header">Settings</div>
-        <div id="dm-pass-settings-section">
+        <div id="dm-pass-settings-section" class="dm-only">
           <div class="input-group">
             <label class="form-label">DM Passphrase (set / change)</label>
             <input class="parchment-input" id="new-dm-pass" type="password" placeholder="New passphrase...">
@@ -200,31 +200,18 @@
           <div id="settings-msg" style="margin-top:0.5rem;font-style:italic;font-size:0.85rem;color:var(--green-health)"></div>
           <hr style="margin:1.5rem 0;border:none;border-top:1px solid var(--border)">
         </div>
-        <div class="sidebar-title">🔄 Real-Time Sync</div>
-        <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1rem;line-height:1.5">Sync is <strong style="color:var(--green-health)">built in</strong> — everyone auto-connects to the TrinityDND campaign on login. No setup needed.</p>
-        <div class="input-group" style="display:none">
-          <label class="form-label">Campaign ID</label>
-          <input class="parchment-input" id="campaign-id-input" type="text" placeholder="e.g. dragons-of-icespire" style="font-family:monospace" value="trinitydnd">
-        </div>
-        <div class="input-group" id="firebase-config-group" style="display:none">
-          <label class="form-label">Firebase Config JSON <span style="font-weight:400;color:var(--text-muted)">(DM only, one-time setup)</span></label>
-          <textarea class="parchment-input" id="firebase-config-input" rows="5" placeholder='{"apiKey":"...","authDomain":"...","databaseURL":"...","projectId":"..."}' style="font-family:monospace;font-size:0.75rem;resize:vertical"></textarea>
-          <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.3rem">Get this from your <a href="https://console.firebase.google.com" target="_blank" style="color:var(--gold)">Firebase Console</a> → Project Settings → Your apps → Config</div>
-        </div>
-        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.5rem">
-          <button class="btn-secondary" onclick="connectSync()">🔗 Connect &amp; Start Sync</button>
-          <button class="btn-secondary" onclick="stopSync()">⏹ Stop Sync</button>
-        </div>
-        <div id="sync-settings-msg" style="font-size:0.82rem;font-style:italic;color:var(--green-health);min-height:1.2em"></div>
-        <hr style="margin:1.5rem 0;border:none;border-top:1px solid var(--border)">
-        <div class="sidebar-title">Data Management</div>
-        <div class="flex-gap mt1">
-          <button class="btn-secondary" onclick="exportData()">📥 Export Campaign Data</button>
-          <button class="btn-secondary" onclick="document.getElementById('import-data-input').click()">📤 Import Campaign Data</button>
-          <input type="file" id="import-data-input" accept=".json" style="display:none" onchange="importData(event)">
+        <div class="dm-only">
+          <div class="sidebar-title">Data Management</div>
+          <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:0.75rem;line-height:1.5">Sync is automatic. Export saves a full backup of every character, map and token. Import replaces the whole campaign for everyone with a backup file.</p>
+          <div class="flex-gap mt1">
+            <button class="btn-secondary" onclick="exportData()">📥 Export Full Backup</button>
+            <button class="btn-secondary" onclick="document.getElementById('import-data-input').click()">📤 Restore From Backup</button>
+            <input type="file" id="import-data-input" accept=".json" style="display:none" onchange="importData(event)">
+          </div>
         </div>
         <div style="margin-top:1.5rem">
-          <button class="btn-secondary" style="border-color:var(--blood);color:var(--blood)" onclick="clearAll()">🗑 Clear All Data</button>
+          <button class="btn-secondary" onclick="clearAll()">🧹 Clear This Device's Cache</button>
+          <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.3rem;font-style:italic">Removes the copy stored on this device and logs you out. Campaign data in the cloud is not affected.</div>
         </div>
       </div>
     </div>
@@ -257,7 +244,6 @@
 <script src="js/persistence.js"></script>
 <script src="js/login.js"></script>
 <script src="js/navigation.js"></script>
-<script src="js/sync.js"></script>
 <script src="js/party.js"></script>
 <script src="js/characters.js"></script>
 <script src="js/creator.js"></script>

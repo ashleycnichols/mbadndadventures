@@ -12,7 +12,7 @@ function renderCharacters() {
   chars.forEach(c => {
     const hpPct = Math.max(0, Math.round(c.currentHp / c.maxHp * 100));
     const hpColor = hpPct > 60 ? '#2d6a2d' : hpPct > 25 ? '#8b6914' : '#8b1a1a';
-    const cardClick = isDM ? `editCharacter('${c.id}')` : `showPanel('sheet',document.getElementById('sheet-tab'))`;
+    const cardClick = isDM ? `editCharacter('${c.id}')` : `setActiveChar('${c.id}');showPanel('sheet',document.getElementById('sheet-tab'))`;
     html += `<div class="character-card" style="position:relative" onclick="${cardClick}">
       ${isDM ? `<button onclick="event.stopPropagation();confirmDeleteChar('${c.id}')" style="position:absolute;top:0.5rem;right:0.5rem;background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:1.1rem;line-height:1;padding:0.2rem 0.4rem;border-radius:2px;transition:color 0.15s" onmouseover="this.style.color='var(--blood)'" onmouseout="this.style.color='var(--text-muted)'" title="Delete character">\u2715</button>` : ''}
       <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.3rem">
@@ -58,16 +58,13 @@ function confirmDeleteChar(id) {
 
 function deleteCharacter(id) {
   state.characters = state.characters.filter(x => x.id !== id);
-  localStorage.setItem('chronicler_v2', JSON.stringify(buildSaveData()));
+  _deletedIds.add(id);
+  delete _charSnap[id];
+  cacheLocally();
   document.getElementById('delete-confirm-overlay')?.remove();
   renderCharacters();
-  // Suppress incoming updates for 3s so the deletion sticks
-  _suppressRemoteUntil = Date.now() + 3000;
   if (state.syncEnabled && state.campaignId && window.fbDeleteCharacter) {
-    clearTimeout(_saveDebounce);
-    window.fbDeleteCharacter(state.campaignId, id).then(() => {
-      _suppressRemoteUntil = Date.now() + 500;
-    });
+    window.fbDeleteCharacter(state.campaignId, id);
   }
 }
 
@@ -94,28 +91,20 @@ function uploadPortrait(charId, input) {
       const ch = state.characters.find(x => x.id === charId);
       if (!ch) return;
       ch.portrait = portrait;
-      // Sync into token library
-      const libKey = 'char_portrait_' + charId;
-      const existing = state.tokenLibrary.find(l => l.id === libKey);
-      if (existing) { existing.img = portrait; existing.name = ch.name; }
-      else { state.tokenLibrary.push({ id: libKey, name: ch.name, img: portrait, charId }); }
-      // Auto-place or update token on active map
-      const active = state.maps.find(m => m.id === state.activeMapId);
-      if (active) {
-        const existing = mapState.tokens.find(t => t.charId === charId);
-        if (existing) {
-          existing.img = portrait;
-          active.tokens = mapState.tokens;
-        } else {
-          const tok = { id: 'tok_' + Date.now(), name: ch.name, type: 'player', charId,
-            x: 0.5, y: 0.5,
-            img: portrait, hidden: false };
-          mapState.tokens.push(tok);
+      // Only the DM changes the map. A player's new portrait reaches the
+      // token library and their tokens when the DM's screen receives it.
+      if (state.currentUser?.isDM) {
+        const active = state.maps.find(m => m.id === state.activeMapId);
+        if (active && !mapState.tokens.some(t => t.charId === charId)) {
+          mapState.tokens.push({ id: 'tok_' + Date.now(), name: ch.name, type: 'player', charId,
+            x: 0.5, y: 0.5, img: portrait, hidden: false, size: 1 });
           active.tokens = mapState.tokens;
         }
+        syncPortraitsToWorld();
       }
       save();
-      renderMySheet();
+      refreshSheets();
+      renderCharacters();
       renderTokenLibrary();
       redrawMap();
     });

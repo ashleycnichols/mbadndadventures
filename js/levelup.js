@@ -28,7 +28,10 @@ function openLevelUp(id) {
   // Ability Score Improvement at 4, 8, 12, 16, 19
   const asiLevels = [4,8,12,16,19];
   const hasASI = asiLevels.includes(newLevel);
-  if (hasASI) changes.push({ type:'asi', label:'Ability Score Improvement', value:'Choose +2 to one ability or +1 to two abilities' });
+  if (hasASI) {
+    changes.push({ type:'asi', label:'Ability Score Improvement', value:'Choose +2 to one ability or +1 to two abilities' });
+    levelUpState.choices.asi = { mode:'double', stat:'str' }; // what the form shows by default
+  }
 
   // New spell slots
   const lvlIdx = Math.min(newLevel - 1, 19);
@@ -200,6 +203,7 @@ function confirmLevelUp() {
   c.currentHp += levelUpState.newHp;
 
   // Apply ASI
+  const conModBefore = Math.floor(((c.stats.con||10)-10)/2);
   if (choices.asi) {
     const asi = choices.asi;
     if (asi.mode === 'double' && asi.stat) {
@@ -208,10 +212,9 @@ function confirmLevelUp() {
       if (asi.stat1) c.stats[asi.stat1] = Math.min(20, (c.stats[asi.stat1]||10) + 1);
       if (asi.stat2) c.stats[asi.stat2] = Math.min(20, (c.stats[asi.stat2]||10) + 1);
     }
-    // Recalculate HP with new CON
-    const conMod = Math.floor(((c.stats.con||10)-10)/2);
-    c.maxHp = calcMaxHp(c.class, c.level, c.stats);
-    c.currentHp = Math.min(c.currentHp, c.maxHp);
+    // A higher CON modifier adds 1 HP per level, including this one
+    const conDiff = Math.floor(((c.stats.con||10)-10)/2) - conModBefore;
+    if (conDiff) { c.maxHp += conDiff * c.level; c.currentHp += conDiff * c.level; }
   }
 
   // Add new spells
@@ -221,7 +224,7 @@ function confirmLevelUp() {
   document.getElementById('levelup-modal').remove();
   save();
   renderCharacters();
-  renderMySheet();
+  refreshSheets();
   showLimitWarning(`${esc(c.name)} is now Level ${c.level}! 🎉`);
 }
 

@@ -17,7 +17,6 @@ function showPanel(id, callerEl) {
     if (state.dmPartyCharId) renderDMSheet(state.dmPartyCharId);
     else renderPartyPanel();
   }
-  if (id === 'settings') populateSyncSettings();
 }
 
 

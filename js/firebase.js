@@ -1,5 +1,5 @@
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-  import { getDatabase, ref, set, get, onValue, off } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+  import { getDatabase, ref, set, get, onValue, off, runTransaction } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
   const HARDCODED_CONFIG = {
     apiKey: "AIzaSyAR57EkvBIBBZIFmnAxJaiNTd8rIPK5iGg",
@@ -18,80 +18,71 @@
   try {
     const app = initializeApp(HARDCODED_CONFIG);
     const db = getDatabase(app);
+    const path = (campaignId, rest) => ref(db, 'campaigns/' + campaignId + (rest ? '/' + rest : ''));
 
-    window.fbSave = function(campaignId, data) {
-      return set(ref(db, 'campaigns/' + campaignId), data)
-        .catch(e => console.warn('fbSave error:', e));
-    };
-
-    // Split-path architecture:
-    // campaigns/<id>/characters/<charId>  — each character separate, written by its player
-    // campaigns/<id>/world                — maps, tokens, library — written by DM only
-    let _charRef = null, _worldRef = null;
+    // Data layout:
+    //   campaigns/<id>/characters/<charId>  one record per character
+    //   campaigns/<id>/world                maps, tokens, token library, grid (written by the DM)
+    //   campaigns/<id>/tokenMoves/<tokenId> player token moves, folded into world by the DM and then cleared
+    //   meta/<key>                          campaign metadata and the DM passphrase hash
 
     window.fbSaveCharacter = function(campaignId, charId, charData) {
-      return set(ref(db, 'campaigns/' + campaignId + '/characters/' + charId), charData)
+      return set(path(campaignId, 'characters/' + charId), charData)
         .catch(e => console.warn('fbSaveCharacter:', e));
     };
 
     window.fbDeleteCharacter = function(campaignId, charId) {
-      return set(ref(db, 'campaigns/' + campaignId + '/characters/' + charId), null)
+      return set(path(campaignId, 'characters/' + charId), null)
         .catch(e => console.warn('fbDeleteCharacter:', e));
     };
 
     window.fbSaveWorld = function(campaignId, worldData) {
-      return set(ref(db, 'campaigns/' + campaignId + '/world'), worldData)
+      return set(path(campaignId, 'world'), worldData)
         .catch(e => console.warn('fbSaveWorld:', e));
     };
 
-    // Write a single token's position — used by players moving their own token
+    // A player moving their own token writes only to tokenMoves
     window.fbSaveTokenPos = function(campaignId, mapId, tokenId, x, y) {
-      // Find the map index and update just that token in the world/maps array
-      // Simpler: write to a separate tokenMoves path the DM listener merges in
-      return set(ref(db, 'campaigns/' + campaignId + '/tokenMoves/' + tokenId), { mapId, x, y, _t: Date.now() })
+      return set(path(campaignId, 'tokenMoves/' + tokenId), { mapId, x, y, _t: Date.now() })
         .catch(e => console.warn('fbSaveTokenPos:', e));
     };
 
-    // Legacy full save — still used for bulk operations
-    window.fbSave = function(campaignId, data) {
-      return set(ref(db, 'campaigns/' + campaignId), data)
-        .catch(e => console.warn('fbSave:', e));
+    // The DM clears a move once it is folded into the world, but only if no newer move replaced it
+    window.fbClearTokenMove = function(campaignId, tokenId, t) {
+      return runTransaction(path(campaignId, 'tokenMoves/' + tokenId), cur => {
+        if (cur && cur._t !== t) return cur;
+        return null;
+      }).catch(e => console.warn('fbClearTokenMove:', e));
     };
 
+    let _refs = [];
     window.fbListen = function(campaignId, onChars, onWorld, onTokenMove) {
-      _charRef = ref(db, 'campaigns/' + campaignId + '/characters');
-      _worldRef = ref(db, 'campaigns/' + campaignId + '/world');
-      const _moveRef = ref(db, 'campaigns/' + campaignId + '/tokenMoves');
-      onValue(_charRef, snap => { onChars(snap.exists() ? snap.val() : {}); });
-      onValue(_worldRef, snap => { onWorld(snap.exists() ? snap.val() : null); });
-      onValue(_moveRef, snap => { if (snap.exists() && onTokenMove) onTokenMove(snap.val()); });
+      window.fbStopListen();
+      const charRef = path(campaignId, 'characters');
+      const worldRef = path(campaignId, 'world');
+      const moveRef = path(campaignId, 'tokenMoves');
+      _refs = [charRef, worldRef, moveRef];
+      onValue(charRef, snap => { onChars(snap.exists() ? snap.val() : {}); });
+      onValue(worldRef, snap => { onWorld(snap.exists() ? snap.val() : null); });
+      onValue(moveRef, snap => { if (onTokenMove) onTokenMove(snap.exists() ? snap.val() : {}); });
     };
 
     window.fbStopListen = function() {
-      if (_charRef) { off(_charRef); _charRef = null; }
-      if (_worldRef) { off(_worldRef); _worldRef = null; }
+      _refs.forEach(r => off(r));
+      _refs = [];
     };
 
-    window.fbPauseListen = function() { window.fbStopListen(); };
-    window.fbResumeListen = function() {}; // handled by re-listening on login
-
-    window.fbSaveMeta = function(joinCode, metaData) {
-      return set(ref(db, 'meta/' + joinCode), metaData)
-        .catch(e => console.warn('fbSaveMeta error:', e));
+    window.fbSaveMeta = function(key, metaData) {
+      return set(ref(db, 'meta/' + key), metaData)
+        .catch(e => console.warn('fbSaveMeta:', e));
     };
 
-    // Read a meta value once — used for DM password verification
-    window.fbFetchMeta = function(joinCode) {
-      return get(ref(db, 'meta/' + joinCode)).then(snap => snap.exists() ? snap.val() : null);
-    };
-
-    window.fbSaveCharacter = function(campaignId, charId, charData) {
-      return set(ref(db, 'campaigns/' + campaignId + '/characters/' + charId), charData)
-        .catch(e => console.warn('fbSaveCharacter error:', e));
+    window.fbFetchMeta = function(key) {
+      return get(ref(db, 'meta/' + key)).then(snap => snap.exists() ? snap.val() : null);
     };
 
     window._fbReady = true;
-    // Drain any callbacks that were queued while Firebase was loading
+    // Run anything that was waiting for Firebase
     (window._fbReadyQueue || []).forEach(fn => fn());
     window._fbReadyQueue = null;
   } catch(e) {
