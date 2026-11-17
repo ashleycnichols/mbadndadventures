@@ -11,7 +11,7 @@ function renderPartyPanel() {
   }
 
   let html = '<div style="max-width:1000px;margin:0 auto;padding:1rem">';
-  html += `<div style="font-family:'Cinzel Decorative',serif;font-size:1.1rem;color:var(--gold);margin-bottom:1rem">Party Overview</div>`;
+  html += `<div style="font-family:var(--font-display);font-size:1.1rem;color:var(--gold-text);margin-bottom:1rem">Party Overview</div>`;
   html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem">';
 
   state.characters.forEach(ch => {
@@ -22,7 +22,7 @@ function renderPartyPanel() {
     const profBonus = Math.ceil(ch.level / 4) + 1;
     const getMod = s => Math.floor(((ch.stats[s]||10) - 10) / 2);
     const hpPct = Math.max(0, Math.round(ch.currentHp / ch.maxHp * 100));
-    const hpColor = hpPct > 60 ? 'var(--green-health)' : hpPct > 25 ? '#8b6914' : 'var(--blood)';
+    const hpColor = hpPct > 60 ? 'var(--green-health)' : hpPct > 25 ? 'var(--amber)' : 'var(--blood)';
     const initMod = getMod('dex');
     const passivePerc = passivePerception(ch);
     const spellMod = spellcastingMod(ch);
@@ -43,13 +43,13 @@ function renderPartyPanel() {
     }
 
     const conditionBadges = ch.conditions.length
-      ? ch.conditions.map(cond => `<span style="font-size:0.68rem;background:rgba(139,26,26,0.15);border:1px solid var(--blood);color:var(--blood);padding:0.1rem 0.35rem;border-radius:2px">${cond}</span>`).join('')
+      ? ch.conditions.map(cond => `<span style="font-size:0.72rem;background:rgba(139,26,26,0.15);border:1px solid var(--blood);color:var(--blood);padding:0.1rem 0.35rem;border-radius:2px">${cond}</span>`).join('')
       : '';
 
     html += `<div onclick="openDMSheet('${ch.id}')" style="background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:1rem;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:0.5rem">
         <div>
-          <div style="font-family:'Cinzel',serif;font-size:1rem;color:var(--text-main);font-weight:600">${esc(ch.name)}</div>
+          <div style="font-family:var(--font-heading);font-size:1rem;color:var(--text-main);font-weight:600">${esc(ch.name)}</div>
           <div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.1rem">${esc(race?.name||'')} ${esc(cls?.name||'')} · Lvl ${ch.level}${ch.player ? ' · '+esc(ch.player) : ''}</div>
         </div>
         ${ch.inspiration ? '<span title="Inspiration" style="font-size:1.2rem">⭐</span>' : ''}
@@ -61,7 +61,7 @@ function renderPartyPanel() {
       <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.6rem">HP: <strong style="color:${hpColor}">${ch.currentHp}</strong> / ${ch.maxHp}${ch.tempHp>0 ? ' <span style="color:#4a7fb5">+'+ch.tempHp+' temp</span>' : ''}</div>
       <!-- Quick stats -->
       <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.5rem">
-        ${[['AC',chAC],['Init',(initMod>=0?'+':'')+initMod],['Perc.',passivePerc],['Prof.','+'+profBonus],cls?.spellcaster?['DC',spellDC]:null].filter(Boolean).map(([l,v])=>`<div style="text-align:center;background:var(--parchment);border:1px solid var(--border);border-radius:2px;padding:0.2rem 0.4rem;min-width:36px"><div style="font-size:0.85rem;font-family:'Cinzel',serif;color:var(--gold)">${v}</div><div style="font-size:0.6rem;color:var(--text-muted)">${l}</div></div>`).join('')}
+        ${[['AC',chAC],['Init',(initMod>=0?'+':'')+initMod],['Perc.',passivePerc],['Prof.','+'+profBonus],cls?.spellcaster?['DC',spellDC]:null].filter(Boolean).map(([l,v])=>`<div style="text-align:center;background:var(--parchment);border:1px solid var(--border);border-radius:2px;padding:0.2rem 0.4rem;min-width:36px"><div style="font-size:0.85rem;font-family:var(--font-ui);color:var(--gold-text)">${v}</div><div style="font-size:0.72rem;color:var(--text-muted)">${l}</div></div>`).join('')}
       </div>
       ${slotSummary ? `<div style="display:flex;gap:0.3rem;flex-wrap:wrap;margin-bottom:0.4rem">${slotSummary}</div>` : ''}
       ${conditionBadges ? `<div style="display:flex;gap:0.25rem;flex-wrap:wrap">${conditionBadges}</div>` : ''}

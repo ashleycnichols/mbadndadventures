@@ -1,31 +1,78 @@
   :root {
-    --ink: #1a1209;
-    --parchment: #f4ead5;
-    --parchment-dark: #e8d5b0;
-    --parchment-deeper: #d4b896;
-    --gold: #c9942a;
-    --gold-bright: #e8b84b;
+    /* Light theme (default) */
+    --ink: #1a1209;               /* top bar and modal headers, dark in both themes */
+    --page-bg: #e9dfc8;
+    --parchment: #fbf6ea;         /* cards */
+    --parchment-dark: #f3e9d4;    /* tiles and inset panels */
+    --parchment-deeper: #d4b896;  /* dividers */
+    --gold: #c9942a;              /* fills, borders, slot pips */
+    --gold-text: #7a4f10;         /* gold-coloured text: readable on parchment */
+    --gold-bright: #e8b84b;       /* gold on the dark top bar */
     --blood: #8b1a1a;
     --blood-light: #c0392b;
     --shadow: #2d1f0e;
     --text-main: #2c1a08;
-    --text-muted: #6b4c2a;
+    --text-muted: #56391a;
     --green-health: #2d6a2d;
-    --border: rgba(139, 90, 43, 0.3);
+    --amber: #8b6914;
+    --blue: #3f6f99;
+    --border: rgba(122, 79, 16, 0.35);
+    --input-bg: rgba(255, 255, 255, 0.65);
+    --input-bg-focus: rgba(255, 255, 255, 0.9);
+    --title-color: var(--gold-text);
+    --title-shadow: none;
+    --font-display: 'Cinzel Decorative', 'Cinzel', Georgia, serif;  /* titles */
+    --font-heading: 'Cinzel', Georgia, serif;                        /* names, headings */
+    --font-ui: 'Crimson Pro', Georgia, serif;                        /* labels, buttons, numbers */
   }
+
+  [data-theme="dark"] {
+    --page-bg: #17110a;
+    --parchment: #2a1f15;
+    --parchment-dark: #33271a;
+    --parchment-deeper: #5a452d;
+    --gold-text: #e6b960;
+    --gold-bright: #f0c96a;
+    --blood: #ef8070;
+    --blood-light: #ff9a8a;
+    --text-main: #f1e6cf;
+    --text-muted: #cdb791;
+    --green-health: #7cc87d;
+    --amber: #e3b545;
+    --blue: #86b6e0;
+    --border: rgba(230, 185, 96, 0.28);
+    --input-bg: rgba(0, 0, 0, 0.28);
+    --input-bg-focus: rgba(0, 0, 0, 0.42);
+    --title-color: var(--gold-bright);
+    --title-shadow: 0 0 40px rgba(201,148,42,0.4), 2px 2px 0 #000;
+    color-scheme: dark;
+  }
+
+  html { font-size: 18px; }
+  .num { font-family: var(--font-ui); font-weight: 600; font-variant-numeric: lining-nums tabular-nums; }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
-    background: var(--shadow);
+    background: var(--page-bg);
     color: var(--text-main);
-    font-family: 'Crimson Pro', Georgia, serif;
-    font-size: 17px;
+    font-family: var(--font-ui);
+    font-size: 1rem;
     min-height: 100vh;
     background-image: 
-      radial-gradient(ellipse at 20% 50%, rgba(139,90,43,0.15) 0%, transparent 60%),
-      radial-gradient(ellipse at 80% 20%, rgba(201,148,42,0.1) 0%, transparent 50%);
+      radial-gradient(ellipse at 20% 50%, rgba(139,90,43,0.08) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, rgba(201,148,42,0.06) 0%, transparent 50%);
   }
+
+  /* ---- THEME TOGGLE ---- */
+  .theme-toggle {
+    background: none; border: 1px solid rgba(201,148,42,0.4); border-radius: 2px;
+    color: #e3d3b4; cursor: pointer; font-size: 0.95rem; line-height: 1; padding: 0.3rem 0.5rem;
+  }
+  .theme-toggle::before { content: '🌙'; }
+  [data-theme="dark"] .theme-toggle::before { content: '☀️'; }
+  .theme-toggle-login { position: absolute; top: 1rem; right: 1rem; color: var(--text-main); border-color: var(--border); }
+  #login-screen { position: relative; }
 
   /* ---- LOGIN SCREEN ---- */
   #login-screen {
@@ -38,27 +85,26 @@
     background: 
       repeating-linear-gradient(0deg, transparent, transparent 50px, rgba(139,90,43,0.03) 50px, rgba(139,90,43,0.03) 51px),
       repeating-linear-gradient(90deg, transparent, transparent 50px, rgba(139,90,43,0.03) 50px, rgba(139,90,43,0.03) 51px),
-      var(--shadow);
+      var(--page-bg);
   }
 
   .login-title {
-    font-family: 'Cinzel Decorative', serif;
+    font-family: var(--font-display);
     font-size: clamp(2rem, 6vw, 4rem);
-    color: var(--gold-bright);
-    text-shadow: 0 0 40px rgba(201,148,42,0.4), 2px 2px 0 var(--shadow);
+    color: var(--title-color);
+    text-shadow: var(--title-shadow);
     letter-spacing: 0.05em;
     text-align: center;
     margin-bottom: 0.5rem;
   }
 
   .login-subtitle {
-    font-family: 'Cinzel', serif;
-    color: var(--parchment-deeper);
+    font-family: var(--font-heading);
+    color: var(--text-muted);
     font-size: 0.95rem;
     letter-spacing: 0.2em;
     text-transform: uppercase;
     margin-bottom: 3rem;
-    opacity: 0.7;
   }
 
   .login-card {
@@ -81,7 +127,7 @@
     background: var(--parchment);
     padding: 0 1rem;
     font-size: 1.5rem;
-    color: var(--gold);
+    color: var(--gold-text);
   }
 
   .role-buttons {
@@ -94,12 +140,12 @@
   .role-btn {
     padding: 1.5rem 1rem;
     border: 2px solid var(--border);
-    background: rgba(255,255,255,0.4);
+    background: var(--input-bg);
     border-radius: 2px;
     cursor: pointer;
     transition: all 0.2s;
     text-align: center;
-    font-family: 'Cinzel', serif;
+    font-family: var(--font-ui);
   }
 
   .role-btn:hover, .role-btn.active {
@@ -110,18 +156,18 @@
 
   .role-btn .role-icon { font-size: 2rem; display: block; margin-bottom: 0.5rem; }
   .role-btn .role-name { font-size: 0.85rem; font-weight: 600; color: var(--text-main); letter-spacing: 0.05em; }
-  .role-btn .role-desc { font-size: 0.75rem; color: var(--text-muted); font-family: 'Crimson Pro', serif; font-style: italic; }
+  .role-btn .role-desc { font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-ui); font-style: italic; }
 
   .input-group { margin-bottom: 1rem; }
-  .input-group label { display: block; font-family: 'Cinzel', serif; font-size: 0.75rem; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 0.4rem; text-transform: uppercase; }
+  .input-group label { display: block; font-family: var(--font-ui); font-size: 0.75rem; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 0.4rem; text-transform: uppercase; }
 
   .parchment-input {
     width: 100%;
     padding: 0.75rem 1rem;
     border: 1px solid var(--parchment-deeper);
     border-bottom: 2px solid var(--gold);
-    background: rgba(255,255,255,0.5);
-    font-family: 'Crimson Pro', serif;
+    background: var(--input-bg);
+    font-family: var(--font-ui);
     font-size: 1rem;
     color: var(--text-main);
     outline: none;
@@ -129,15 +175,15 @@
     border-radius: 2px 2px 0 0;
   }
 
-  .parchment-input:focus { border-bottom-color: var(--blood); background: rgba(255,255,255,0.7); }
+  .parchment-input:focus { border-bottom-color: var(--blood); background: var(--input-bg-focus); }
 
   .btn-primary {
     width: 100%;
     padding: 1rem;
-    background: linear-gradient(135deg, var(--blood) 0%, #6b1414 100%);
-    color: var(--parchment);
+    background: linear-gradient(135deg, #8b1a1a 0%, #6b1414 100%);
+    color: #f4ead5;
     border: 1px solid rgba(255,255,255,0.2);
-    font-family: 'Cinzel', serif;
+    font-family: var(--font-ui);
     font-size: 0.9rem;
     letter-spacing: 0.15em;
     text-transform: uppercase;
@@ -147,9 +193,9 @@
     margin-top: 0.5rem;
   }
 
-  .btn-primary:hover { background: linear-gradient(135deg, var(--blood-light) 0%, var(--blood) 100%); box-shadow: 0 4px 20px rgba(139,26,26,0.4); }
+  .btn-primary:hover { background: linear-gradient(135deg, #c0392b 0%, #8b1a1a 100%); box-shadow: 0 4px 20px rgba(139,26,26,0.4); }
   .btn-gold { background: linear-gradient(135deg, var(--gold) 0%, #a07020 100%); color: var(--ink); }
-  .btn-gold:hover { background: linear-gradient(135deg, var(--gold-bright) 0%, var(--gold) 100%); box-shadow: 0 4px 20px rgba(201,148,42,0.4); }
+  .btn-gold:hover { background: linear-gradient(135deg, #e8b84b 0%, #c9942a 100%); box-shadow: 0 4px 20px rgba(201,148,42,0.4); }
 
   .error-msg { color: var(--blood-light); font-size: 0.85rem; margin-top: 0.5rem; text-align: center; font-style: italic; }
 
@@ -169,7 +215,7 @@
   }
 
   .top-bar-title {
-    font-family: 'Cinzel Decorative', serif;
+    font-family: var(--font-display);
     color: var(--gold-bright);
     font-size: 1.1rem;
     letter-spacing: 0.05em;
@@ -182,13 +228,13 @@
 
   .nav-tab {
     padding: 0.5rem 1.25rem;
-    font-family: 'Cinzel', serif;
+    font-family: var(--font-ui);
     font-size: 0.75rem;
     letter-spacing: 0.1em;
     text-transform: uppercase;
     cursor: pointer;
     border: 1px solid transparent;
-    color: var(--parchment-deeper);
+    color: #e3d3b4;
     background: none;
     border-radius: 2px;
     transition: all 0.2s;
@@ -198,7 +244,7 @@
   .nav-tab.active { color: var(--gold-bright); border-color: var(--gold); background: rgba(201,148,42,0.1); }
 
   .user-badge {
-    font-family: 'Cinzel', serif;
+    font-family: var(--font-ui);
     font-size: 0.7rem;
     letter-spacing: 0.1em;
     padding: 0.3rem 0.8rem;
@@ -218,9 +264,9 @@
 
   /* ---- CHARACTER PANEL ---- */
   .section-header {
-    font-family: 'Cinzel', serif;
+    font-family: var(--font-heading);
     font-size: 1.3rem;
-    color: var(--gold);
+    color: var(--gold-text);
     border-bottom: 1px solid var(--gold);
     padding-bottom: 0.5rem;
     margin-bottom: 1.5rem;
@@ -249,7 +295,7 @@
 
   .character-card:hover { transform: translateY(-2px); box-shadow: 4px 6px 16px rgba(0,0,0,0.4); border-left-color: var(--gold-bright); }
 
-  .char-name { font-family: 'Cinzel', serif; font-size: 1.1rem; font-weight: 600; color: var(--text-main); }
+  .char-name { font-family: var(--font-heading); font-size: 1.1rem; font-weight: 600; color: var(--text-main); }
   .char-meta { font-size: 0.9rem; color: var(--text-muted); font-style: italic; margin: 0.25rem 0; }
   .char-hp-bar { height: 6px; background: var(--parchment-dark); border-radius: 3px; margin: 0.5rem 0; }
   .char-hp-fill { height: 100%; background: var(--green-health); border-radius: 3px; transition: width 0.3s; }
@@ -266,13 +312,13 @@
     cursor: pointer;
     transition: all 0.2s;
     color: var(--text-muted);
-    font-family: 'Cinzel', serif;
+    font-family: var(--font-ui);
     font-size: 0.85rem;
     letter-spacing: 0.05em;
     border-radius: 2px;
   }
 
-  .add-char-card:hover { border-color: var(--gold); color: var(--gold); background: rgba(201,148,42,0.05); }
+  .add-char-card:hover { border-color: var(--gold); color: var(--gold-text); background: rgba(201,148,42,0.05); }
   .add-char-card .plus { font-size: 2.5rem; line-height: 1; margin-bottom: 0.5rem; }
 
   /* ---- CHARACTER CREATOR MODAL ---- */
@@ -311,10 +357,10 @@
     z-index: 10;
   }
 
-  .modal-header h2 { font-family: 'Cinzel', serif; color: var(--gold-bright); font-size: 1.1rem; letter-spacing: 0.05em; }
+  .modal-header h2 { font-family: var(--font-heading); color: var(--gold-bright); font-size: 1.1rem; letter-spacing: 0.05em; }
 
   .modal-close {
-    background: none; border: none; color: var(--parchment-deeper);
+    background: none; border: none; color: #e3d3b4;
     font-size: 1.5rem; cursor: pointer; line-height: 1; padding: 0 0.25rem;
   }
   .modal-close:hover { color: var(--gold-bright); }
@@ -331,7 +377,7 @@
   }
 
   .step-indicator {
-    font-family: 'Cinzel', serif;
+    font-family: var(--font-ui);
     font-size: 0.7rem;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -358,7 +404,7 @@
 
   .option-card {
     border: 2px solid var(--border);
-    background: rgba(255,255,255,0.4);
+    background: var(--input-bg);
     border-radius: 2px;
     padding: 1rem;
     cursor: pointer;
@@ -369,7 +415,7 @@
   .option-card:hover { border-color: var(--gold); background: rgba(201,148,42,0.1); }
   .option-card.selected { border-color: var(--gold-bright); background: rgba(201,148,42,0.2); box-shadow: 0 0 0 1px var(--gold); }
   .option-card .opt-icon { font-size: 1.8rem; margin-bottom: 0.4rem; }
-  .option-card .opt-name { font-family: 'Cinzel', serif; font-size: 0.8rem; font-weight: 600; color: var(--text-main); }
+  .option-card .opt-name { font-family: var(--font-ui); font-size: 0.8rem; font-weight: 600; color: var(--text-main); }
   .option-card .opt-desc { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; font-style: italic; line-height: 1.3; }
 
   .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1rem 0; }
@@ -382,10 +428,10 @@
     text-align: center;
   }
 
-  .stat-box .stat-name { font-family: 'Cinzel', serif; font-size: 0.65rem; letter-spacing: 0.15em; color: var(--text-muted); text-transform: uppercase; }
-  .stat-box .stat-val { font-family: 'Cinzel Decorative', serif; font-size: 1.8rem; color: var(--text-main); line-height: 1.2; }
+  .stat-box .stat-name { font-family: var(--font-ui); font-size: 0.72rem; letter-spacing: 0.08em; color: var(--text-muted); text-transform: uppercase; }
+  .stat-box .stat-val { font-family: var(--font-ui); font-weight: 600; font-variant-numeric: lining-nums; font-size: 1.8rem; color: var(--text-main); line-height: 1.2; }
   .stat-box .stat-mod { font-size: 0.8rem; color: var(--text-muted); }
-  .stat-box input { width: 100%; text-align: center; background: transparent; border: none; outline: none; font-family: 'Cinzel Decorative', serif; font-size: 1.8rem; color: var(--text-main); }
+  .stat-box input { width: 100%; text-align: center; background: transparent; border: none; outline: none; font-family: var(--font-ui); font-weight: 600; font-variant-numeric: lining-nums; font-size: 1.8rem; color: var(--text-main); }
 
   .spell-list { max-height: 300px; overflow-y: auto; }
 
@@ -402,8 +448,8 @@
   .spell-item:hover { background: rgba(201,148,42,0.1); }
   .spell-item.selected { background: rgba(201,148,42,0.2); }
   .spell-item input[type="checkbox"] { accent-color: var(--gold); width: 16px; height: 16px; cursor: pointer; }
-  .spell-item .spell-name { font-family: 'Cinzel', serif; font-size: 0.85rem; flex: 1; }
-  .spell-item .spell-level { font-size: 0.75rem; color: var(--text-muted); background: var(--parchment-dark); padding: 0.1rem 0.4rem; border-radius: 2px; font-family: 'Cinzel', serif; }
+  .spell-item .spell-name { font-family: var(--font-ui); font-size: 0.85rem; flex: 1; }
+  .spell-item .spell-level { font-size: 0.75rem; color: var(--text-muted); background: var(--parchment-dark); padding: 0.1rem 0.4rem; border-radius: 2px; font-family: var(--font-ui); }
   .spell-item .spell-school { font-size: 0.75rem; color: var(--text-muted); font-style: italic; }
 
   .weapon-item {
@@ -413,13 +459,13 @@
   }
   .weapon-item:hover { background: rgba(201,148,42,0.1); }
   .weapon-item.selected { background: rgba(201,148,42,0.2); }
-  .weapon-item .weapon-name { font-family: 'Cinzel', serif; font-size: 0.85rem; flex: 1; }
-  .weapon-item .weapon-dmg { font-size: 0.8rem; color: var(--blood); font-family: 'Cinzel', serif; }
+  .weapon-item .weapon-name { font-family: var(--font-ui); font-size: 0.85rem; flex: 1; }
+  .weapon-item .weapon-dmg { font-size: 0.8rem; color: var(--blood); font-family: var(--font-ui); }
   .weapon-item .weapon-type { font-size: 0.75rem; color: var(--text-muted); font-style: italic; }
 
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
   .form-full { margin-bottom: 1rem; }
-  .form-label { font-family: 'Cinzel', serif; font-size: 0.75rem; letter-spacing: 0.1em; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 0.35rem; }
+  .form-label { font-family: var(--font-ui); font-size: 0.75rem; letter-spacing: 0.1em; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 0.35rem; }
 
   textarea.parchment-input { resize: vertical; min-height: 80px; }
 
@@ -437,7 +483,7 @@
     padding: 0.6rem 1.25rem;
     border: 1px solid var(--parchment-deeper);
     background: transparent;
-    font-family: 'Cinzel', serif;
+    font-family: var(--font-ui);
     font-size: 0.75rem;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -446,7 +492,7 @@
     border-radius: 2px;
     transition: all 0.2s;
   }
-  .btn-secondary:hover { border-color: var(--gold); color: var(--gold); }
+  .btn-secondary:hover { border-color: var(--gold); color: var(--gold-text); }
 
   .btn-sm {
     padding: 0.4rem 0.8rem;
@@ -485,17 +531,17 @@
   }
 
   .sidebar-section { margin-bottom: 1.5rem; }
-  .sidebar-title { font-family: 'Cinzel', serif; font-size: 0.8rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold); border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; margin-bottom: 0.75rem; }
+  .sidebar-title { font-family: var(--font-ui); font-size: 0.8rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold-text); border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; margin-bottom: 0.75rem; }
 
   .map-controls { display: flex; flex-direction: column; gap: 0.5rem; }
 
   .control-btn {
     padding: 0.6rem 0.75rem;
     border: 1px solid var(--border);
-    background: rgba(255,255,255,0.5);
+    background: var(--input-bg);
     border-radius: 2px;
     cursor: pointer;
-    font-family: 'Cinzel', serif;
+    font-family: var(--font-ui);
     font-size: 0.75rem;
     letter-spacing: 0.05em;
     color: var(--text-main);
@@ -505,7 +551,7 @@
   }
 
   .control-btn:hover { border-color: var(--gold); background: rgba(201,148,42,0.1); }
-  .control-btn.active-tool { border-color: var(--gold-bright); background: rgba(201,148,42,0.2); color: var(--gold); }
+  .control-btn.active-tool { border-color: var(--gold-bright); background: rgba(201,148,42,0.2); color: var(--gold-text); }
 
   .token-list { display: flex; flex-direction: column; gap: 0.4rem; }
 
@@ -514,7 +560,7 @@
     padding: 0.5rem;
     border: 1px solid var(--border);
     border-radius: 2px;
-    background: rgba(255,255,255,0.3);
+    background: var(--input-bg);
     font-size: 0.8rem;
     cursor: pointer;
     transition: all 0.15s;
@@ -524,21 +570,21 @@
   .token-thumb { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 2px solid var(--gold); background: var(--parchment-dark); display: flex; align-items: center; justify-content: center; font-size: 0.9rem; flex-shrink: 0; overflow: hidden; }
   .token-thumb img { width: 100%; height: 100%; object-fit: cover; }
   .token-info { flex: 1; min-width: 0; }
-  .token-name { font-family: 'Cinzel', serif; font-size: 0.75rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .token-name { font-family: var(--font-ui); font-size: 0.75rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .token-type { font-size: 0.7rem; color: var(--text-muted); font-style: italic; }
-  .token-toggle { padding: 0.2rem 0.4rem; font-size: 0.65rem; background: none; border: 1px solid var(--border); border-radius: 2px; cursor: pointer; color: var(--text-muted); font-family: 'Cinzel', serif; }
+  .token-toggle { padding: 0.2rem 0.4rem; font-size: 0.65rem; background: none; border: 1px solid var(--border); border-radius: 2px; cursor: pointer; color: var(--text-muted); font-family: var(--font-ui); }
   .token-toggle:hover { border-color: var(--blood); color: var(--blood); }
 
   .grid-control {
     display: flex; align-items: center; gap: 0.5rem;
-    font-family: 'Cinzel', serif; font-size: 0.75rem;
+    font-family: var(--font-ui); font-size: 0.75rem;
     margin-bottom: 0.5rem;
   }
   .grid-control input[type="number"] {
     width: 55px; padding: 0.3rem 0.4rem;
     border: 1px solid var(--parchment-deeper); border-radius: 2px;
-    font-family: 'Crimson Pro', serif; font-size: 0.9rem;
-    background: rgba(255,255,255,0.5); color: var(--text-main); text-align: center;
+    font-family: var(--font-ui); font-size: 0.9rem;
+    background: var(--input-bg); color: var(--text-main); text-align: center;
   }
   .grid-control input[type="checkbox"] { accent-color: var(--gold); }
 
@@ -553,7 +599,7 @@
     transition: all 0.2s;
     margin-bottom: 0.5rem;
   }
-  .upload-zone:hover { border-color: var(--gold); color: var(--gold); }
+  .upload-zone:hover { border-color: var(--gold); color: var(--gold-text); }
 
   /* ---- CHARACTER SHEET ---- */
   .char-sheet {
@@ -574,14 +620,14 @@
   }
 
   .sheet-char-name {
-    font-family: 'Cinzel Decorative', serif;
+    font-family: var(--font-display);
     font-size: 2rem;
     color: var(--text-main);
     margin-bottom: 0.25rem;
   }
 
   .sheet-char-meta {
-    font-family: 'Cinzel', serif;
+    font-family: var(--font-ui);
     font-size: 0.9rem;
     color: var(--text-muted);
     letter-spacing: 0.05em;
@@ -598,12 +644,12 @@
     margin-bottom: 1rem;
   }
 
-  .hp-label { font-family: 'Cinzel', serif; font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-muted); }
-  .hp-current { font-family: 'Cinzel Decorative', serif; font-size: 2.5rem; color: var(--blood); line-height: 1; }
+  .hp-label { font-family: var(--font-ui); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+  .hp-current { font-family: var(--font-ui); font-weight: 600; font-variant-numeric: lining-nums; font-size: 2.5rem; color: var(--blood); line-height: 1; }
   .hp-max { font-size: 0.85rem; color: var(--text-muted); }
 
   .hp-editor { display: flex; gap: 0.5rem; align-items: center; justify-content: center; margin-top: 0.5rem; }
-  .hp-editor input { width: 60px; text-align: center; padding: 0.3rem; border: 1px solid var(--parchment-deeper); border-radius: 2px; font-size: 0.85rem; background: rgba(255,255,255,0.5); }
+  .hp-editor input { width: 60px; text-align: center; padding: 0.3rem; border: 1px solid var(--parchment-deeper); border-radius: 2px; font-size: 0.85rem; background: var(--input-bg); }
   .hp-editor button { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
 
   .sheet-spells, .sheet-weapons {
@@ -643,7 +689,7 @@
     pointer-events: none;
   }
 
-  .token-popup-name { font-family: 'Cinzel', serif; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.25rem; }
+  .token-popup-name { font-family: var(--font-heading); font-size: 0.9rem; font-weight: 600; margin-bottom: 0.25rem; }
   .token-popup-meta { font-size: 0.8rem; color: var(--text-muted); font-style: italic; }
   .token-popup-hp { margin-top: 0.5rem; }
   .token-popup-bar { height: 8px; background: var(--parchment-dark); border-radius: 4px; margin-top: 0.25rem; }
@@ -655,16 +701,16 @@
   .mt1 { margin-top: 1rem; }
 
   .filter-bar { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
-  .filter-btn { padding: 0.3rem 0.7rem; font-family: 'Cinzel', serif; font-size: 0.7rem; letter-spacing: 0.05em; border: 1px solid var(--border); border-radius: 2px; background: transparent; cursor: pointer; color: var(--text-muted); transition: all 0.15s; }
+  .filter-btn { padding: 0.3rem 0.7rem; font-family: var(--font-ui); font-size: 0.7rem; letter-spacing: 0.05em; border: 1px solid var(--border); border-radius: 2px; background: transparent; cursor: pointer; color: var(--text-muted); transition: all 0.15s; }
   .filter-btn.active { background: var(--gold); border-color: var(--gold); color: var(--ink); }
 
   .search-input {
     padding: 0.4rem 0.75rem;
     border: 1px solid var(--parchment-deeper);
     border-radius: 2px;
-    font-family: 'Crimson Pro', serif;
+    font-family: var(--font-ui);
     font-size: 0.9rem;
-    background: rgba(255,255,255,0.6);
+    background: var(--input-bg);
     color: var(--text-main);
     outline: none;
     flex: 1;

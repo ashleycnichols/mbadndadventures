@@ -24,7 +24,7 @@ function compactSheetHTML(c, prefix) {
   const profBonus = Math.ceil(c.level / 4) + 1;
   const getMod = s => Math.floor(((c.stats[s]||10) - 10) / 2);
   const hpPct = Math.max(0, Math.round(c.currentHp / c.maxHp * 100));
-  const hpColor = hpPct > 60 ? 'var(--green-health)' : hpPct > 25 ? '#8b6914' : 'var(--blood)';
+  const hpColor = hpPct > 60 ? 'var(--green-health)' : hpPct > 25 ? 'var(--amber)' : 'var(--blood)';
   const initMod = getMod('dex');
   const spellMod = cls?.statHp ? getMod(cls.statHp) : 0;
   const spellDC = 8 + profBonus + spellMod;
@@ -48,14 +48,14 @@ function compactSheetHTML(c, prefix) {
 
   // Section styles
   const sec = 'padding:0.75rem;border-bottom:1px solid var(--border)';
-  const label = 'font-family:"Cinzel",serif;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:0.3rem';
+  const label = 'font-family:var(--font-ui);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:0.3rem';
   const pipBtn = (filled, onclick) => `<button onclick="${onclick}" style="width:14px;height:14px;border-radius:50%;border:1.5px solid ${filled ? (hpColor) : 'var(--border)'};background:${filled ? hpColor : 'transparent'};cursor:pointer;padding:0;flex-shrink:0;transition:all 0.15s"></button>`;
 
   let html = '';
 
   // ── Character name + quick meta ──
   html += `<div style="${sec};background:var(--parchment-dark)">
-    <div style="font-family:'Cinzel',serif;font-size:0.9rem;color:var(--text-main);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.name)}</div>
+    <div style="font-family:var(--font-heading);font-size:0.9rem;color:var(--text-main);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.name)}</div>
     <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.1rem">${race?.name||''} ${cls?.name||''} · Lvl ${c.level}${c.inspiration ? ' ⭐' : ''}</div>
   </div>`;
 
@@ -63,31 +63,31 @@ function compactSheetHTML(c, prefix) {
   html += `<div style="${sec}">
     <div style="${label}">Hit Points</div>
     <div style="display:flex;align-items:baseline;gap:0.4rem;margin-bottom:0.3rem">
-      <span style="font-family:'Cinzel Decorative',serif;font-size:2rem;color:${hpColor};line-height:1">${c.currentHp}</span>
+      <span style="font-family:var(--font-ui);font-weight:600;font-variant-numeric:lining-nums;font-size:2rem;color:${hpColor};line-height:1">${c.currentHp}</span>
       <span style="color:var(--text-muted);font-size:0.85rem">/ ${c.maxHp}</span>
-      ${c.tempHp > 0 ? `<span style="font-size:0.75rem;color:#4a7ca5">+${c.tempHp}</span>` : ''}
+      ${c.tempHp > 0 ? `<span style="font-size:0.75rem;color:var(--blue)">+${c.tempHp}</span>` : ''}
     </div>
     <div style="height:5px;background:var(--parchment-dark);border-radius:3px;margin-bottom:0.5rem;overflow:hidden">
       <div style="height:100%;width:${hpPct}%;background:${hpColor};transition:width 0.3s"></div>
     </div>
     <div style="display:flex;align-items:center;gap:0.3rem;margin-bottom:0.4rem">
-      <input id="${prefix}-hp-adjust" type="number" min="1" placeholder="amt" style="width:52px;border:1px solid var(--border);background:var(--parchment);border-radius:2px;padding:0.3rem 0.4rem;font-family:'Cinzel',serif;font-size:0.8rem;color:var(--text-main);text-align:center">
-      <button onclick="sheetAdjustHP('${c.id}',1,'${prefix}-hp-adjust')" style="flex:1;padding:0.3rem;background:rgba(45,106,45,0.15);border:1px solid var(--green-health);border-radius:2px;cursor:pointer;font-family:'Cinzel',serif;font-size:0.7rem;color:var(--green-health)">+ Heal</button>
-      <button onclick="sheetAdjustHP('${c.id}',-1,'${prefix}-hp-adjust')" style="flex:1;padding:0.3rem;background:rgba(139,26,26,0.1);border:1px solid var(--blood);border-radius:2px;cursor:pointer;font-family:'Cinzel',serif;font-size:0.7rem;color:var(--blood)">− Dmg</button>
+      <input id="${prefix}-hp-adjust" type="number" min="1" placeholder="amt" style="width:52px;border:1px solid var(--border);background:var(--parchment);border-radius:2px;padding:0.3rem 0.4rem;font-family:var(--font-ui);font-size:0.8rem;color:var(--text-main);text-align:center">
+      <button onclick="sheetAdjustHP('${c.id}',1,'${prefix}-hp-adjust')" style="flex:1;padding:0.3rem;background:rgba(45,106,45,0.15);border:1px solid var(--green-health);border-radius:2px;cursor:pointer;font-family:var(--font-ui);font-size:0.7rem;color:var(--green-health)">+ Heal</button>
+      <button onclick="sheetAdjustHP('${c.id}',-1,'${prefix}-hp-adjust')" style="flex:1;padding:0.3rem;background:rgba(139,26,26,0.1);border:1px solid var(--blood);border-radius:2px;cursor:pointer;font-family:var(--font-ui);font-size:0.7rem;color:var(--blood)">− Dmg</button>
     </div>
     ${isDying ? `<div style="margin-bottom:0.4rem">
       <div style="${label};color:var(--blood)">Death Saves</div>
       <div style="display:flex;gap:0.5rem;align-items:center">
-        <span style="font-size:0.65rem;color:var(--green-health);font-family:'Cinzel',serif">✓</span>
+        <span style="font-size:0.72rem;color:var(--green-health);font-family:var(--font-ui)">✓</span>
         <div style="display:flex;gap:0.25rem">${[0,1,2].map(i => pipBtn(i < c.deathSaves.success, `mapToggleDeathSave('${c.id}','success',${i})`)).join('')}</div>
-        <span style="font-size:0.65rem;color:var(--blood);font-family:'Cinzel',serif">✗</span>
+        <span style="font-size:0.72rem;color:var(--blood);font-family:var(--font-ui)">✗</span>
         <div style="display:flex;gap:0.25rem">${[0,1,2].map(i => pipBtn(i < c.deathSaves.fail, `mapToggleDeathSave('${c.id}','fail',${i})`)).join('')}</div>
       </div>
     </div>` : ''}
     <div style="display:flex;gap:0.3rem">
-      <button onclick="mapShortRest('${c.id}')" style="flex:1;padding:0.25rem 0.3rem;background:none;border:1px solid var(--border);border-radius:2px;cursor:pointer;font-family:'Cinzel',serif;font-size:0.6rem;color:var(--text-muted);white-space:nowrap">☕ Short</button>
-      <button onclick="mapLongRest('${c.id}')" style="flex:1;padding:0.25rem 0.3rem;background:none;border:1px solid var(--border);border-radius:2px;cursor:pointer;font-family:'Cinzel',serif;font-size:0.6rem;color:var(--text-muted);white-space:nowrap">🌙 Long</button>
-      <button onclick="mapUseHitDie('${c.id}')" style="flex:1;padding:0.25rem 0.3rem;background:none;border:1px solid var(--border);border-radius:2px;cursor:pointer;font-family:'Cinzel',serif;font-size:0.6rem;color:var(--text-muted);white-space:nowrap" title="Use Hit Die">🎲 d${cls?.hd||8}</button>
+      <button onclick="mapShortRest('${c.id}')" style="flex:1;padding:0.25rem 0.3rem;background:none;border:1px solid var(--border);border-radius:2px;cursor:pointer;font-family:var(--font-ui);font-size:0.72rem;color:var(--text-muted);white-space:nowrap">☕ Short</button>
+      <button onclick="mapLongRest('${c.id}')" style="flex:1;padding:0.25rem 0.3rem;background:none;border:1px solid var(--border);border-radius:2px;cursor:pointer;font-family:var(--font-ui);font-size:0.72rem;color:var(--text-muted);white-space:nowrap">🌙 Long</button>
+      <button onclick="mapUseHitDie('${c.id}')" style="flex:1;padding:0.25rem 0.3rem;background:none;border:1px solid var(--border);border-radius:2px;cursor:pointer;font-family:var(--font-ui);font-size:0.72rem;color:var(--text-muted);white-space:nowrap" title="Use Hit Die">🎲 d${cls?.hd||8}</button>
     </div>
   </div>`;
 
@@ -106,8 +106,8 @@ function compactSheetHTML(c, prefix) {
   }
   html += `<div style="${sec};display:grid;grid-template-columns:repeat(${qStats.length},1fr);gap:0.2rem;text-align:center">
     ${qStats.map(([l,v]) => `<div style="background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:0.3rem 0.1rem">
-      <div style="font-family:'Cinzel Decorative',serif;font-size:0.85rem;color:var(--gold)">${v}</div>
-      <div style="font-size:0.58rem;font-family:'Cinzel',serif;color:var(--text-muted);text-transform:uppercase">${l}</div>
+      <div style="font-family:var(--font-ui);font-weight:600;font-variant-numeric:lining-nums;font-size:0.85rem;color:var(--gold-text)">${v}</div>
+      <div style="font-size:0.72rem;font-family:var(--font-ui);color:var(--text-muted);text-transform:uppercase">${l}</div>
     </div>`).join('')}
   </div>`;
 
@@ -119,8 +119,8 @@ function compactSheetHTML(c, prefix) {
       ${statKeys.map(s => {
         const mod = getMod(s);
         return `<div style="background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:0.2rem 0">
-          <div style="font-size:0.7rem;font-family:'Cinzel',serif;color:var(--gold)">${mod>=0?'+':''}${mod}</div>
-          <div style="font-size:0.55rem;font-family:'Cinzel',serif;color:var(--text-muted)">${s.toUpperCase()}</div>
+          <div style="font-size:0.7rem;font-family:var(--font-ui);color:var(--gold-text)">${mod>=0?'+':''}${mod}</div>
+          <div style="font-size:0.72rem;font-family:var(--font-ui);color:var(--text-muted)">${s.toUpperCase()}</div>
         </div>`;
       }).join('')}
     </div>
@@ -133,8 +133,8 @@ function compactSheetHTML(c, prefix) {
       ${weaponObjs.map(w => {
         const wa = weaponAttack(c, w);
         return `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.25rem 0;border-bottom:1px solid rgba(0,0,0,0.05);font-size:0.72rem">
-          <span style="color:var(--text-main);font-family:'Cinzel',serif;font-size:0.68rem">${w.name}${wa.proficient ? '' : ' ⚠'}</span>
-          <span style="color:var(--gold);font-family:'Cinzel',serif">${fmtMod(wa.atk)} · ${wa.dmg}</span>
+          <span style="color:var(--text-main);font-family:var(--font-ui);font-size:0.72rem">${w.name}${wa.proficient ? '' : ' ⚠'}</span>
+          <span style="color:var(--gold-text);font-family:var(--font-ui)">${fmtMod(wa.atk)} · ${wa.dmg}</span>
         </div>`;
       }).join('')}
     </div>`;
@@ -150,7 +150,7 @@ function compactSheetHTML(c, prefix) {
         const used = c.usedSlots[level] || 0;
         const remaining = total - used;
         return `<div style="display:flex;align-items:center;gap:0.35rem;margin-bottom:0.3rem">
-          <span style="font-size:0.62rem;font-family:'Cinzel',serif;color:var(--text-muted);width:16px">L${level}</span>
+          <span style="font-size:0.72rem;font-family:var(--font-ui);color:var(--text-muted);width:16px">L${level}</span>
           <div style="display:flex;gap:0.2rem;flex-wrap:wrap">
             ${Array.from({length:total}, (_,si) => `<button onclick="mapToggleSlot('${c.id}',${level},${si})"
               style="width:14px;height:14px;border-radius:50%;border:1.5px solid ${si < remaining ? 'var(--gold)' : 'var(--border)'};background:${si < remaining ? 'var(--gold)' : 'transparent'};cursor:pointer;padding:0;transition:all 0.15s"></button>`).join('')}
@@ -165,7 +165,7 @@ function compactSheetHTML(c, prefix) {
     html += `<div style="${sec}">
       <div style="${label}">Cantrips</div>
       <div style="display:flex;flex-wrap:wrap;gap:0.25rem">
-        ${cantrips.map(sp => `<span onclick="showSheetSpellDetail('${sp.id}','${c.id}')" style="font-size:0.68rem;font-family:'Cinzel',serif;background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:0.15rem 0.35rem;cursor:pointer;color:var(--text-muted)" title="${esc(sp.name)}">${esc(sp.name)}</span>`).join('')}
+        ${cantrips.map(sp => `<span onclick="showSheetSpellDetail('${sp.id}','${c.id}')" style="font-size:0.72rem;font-family:var(--font-ui);background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:0.15rem 0.35rem;cursor:pointer;color:var(--text-muted)" title="${esc(sp.name)}">${esc(sp.name)}</span>`).join('')}
       </div>
     </div>`;
   }
@@ -178,9 +178,9 @@ function compactSheetHTML(c, prefix) {
       <div style="${label}">Spells</div>
       ${Object.entries(byLevel).map(([lvl, spells]) =>
         `<div style="margin-bottom:0.3rem">
-          <div style="font-size:0.58rem;font-family:'Cinzel',serif;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.15rem">Level ${lvl}</div>
+          <div style="font-size:0.72rem;font-family:var(--font-ui);color:var(--text-muted);text-transform:uppercase;margin-bottom:0.15rem">Level ${lvl}</div>
           <div style="display:flex;flex-wrap:wrap;gap:0.2rem">
-            ${spells.map(sp => `<span onclick="showSheetSpellDetail('${sp.id}','${c.id}')" style="font-size:0.65rem;font-family:'Cinzel',serif;background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:0.12rem 0.3rem;cursor:pointer;color:var(--text-muted)">${esc(sp.name)}</span>`).join('')}
+            ${spells.map(sp => `<span onclick="showSheetSpellDetail('${sp.id}','${c.id}')" style="font-size:0.72rem;font-family:var(--font-ui);background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:0.12rem 0.3rem;cursor:pointer;color:var(--text-muted)">${esc(sp.name)}</span>`).join('')}
           </div>
         </div>`
       ).join('')}
@@ -192,7 +192,7 @@ function compactSheetHTML(c, prefix) {
     html += `<div style="${sec}">
       <div style="${label}">Conditions</div>
       <div style="display:flex;flex-wrap:wrap;gap:0.2rem">
-        ${c.conditions.map(cond => `<span onclick="removeCondition('${c.id}','${cond}')" style="font-size:0.65rem;background:rgba(139,26,26,0.12);border:1px solid var(--blood);color:var(--blood);padding:0.1rem 0.3rem;border-radius:2px;cursor:pointer" title="Click to remove">${cond} ✕</span>`).join('')}
+        ${c.conditions.map(cond => `<span onclick="removeCondition('${c.id}','${cond}')" style="font-size:0.72rem;background:rgba(139,26,26,0.12);border:1px solid var(--blood);color:var(--blood);padding:0.1rem 0.3rem;border-radius:2px;cursor:pointer" title="Click to remove">${cond} ✕</span>`).join('')}
       </div>
     </div>`;
   }
@@ -207,7 +207,7 @@ function renderCombatSidebar() {
   if (!container) return;
   const c = myActiveChar();
   if (!c) {
-    container.innerHTML = `<div style="padding:1rem;font-size:0.8rem;color:var(--text-muted);font-style:italic;font-family:'Crimson Pro',serif">
+    container.innerHTML = `<div style="padding:1rem;font-size:0.8rem;color:var(--text-muted);font-style:italic;font-family:var(--font-ui)">
       No character linked to <strong>${esc(state.currentUser?.name)}</strong>.<br>
       <button onclick="showPanel('characters',this)" class="btn-secondary btn-sm" style="margin-top:0.75rem">Create Character</button>
     </div>`;
@@ -215,7 +215,7 @@ function renderCombatSidebar() {
   }
   container.innerHTML = compactSheetHTML(c, 'map') + `<div style="padding:0.75rem;display:flex;align-items:center;gap:0.4rem">
     <input type="checkbox" id="grid-toggle-player" onchange="toggleGrid(this)" ${effectiveShowGrid() ? 'checked' : ''} style="cursor:pointer">
-    <label for="grid-toggle-player" style="font-family:'Cinzel',serif;font-size:0.7rem;color:var(--text-muted);cursor:pointer">Show Grid</label>
+    <label for="grid-toggle-player" style="font-family:var(--font-ui);font-size:0.7rem;color:var(--text-muted);cursor:pointer">Show Grid</label>
   </div>`;
 }
 
@@ -327,12 +327,12 @@ function renderMapTabs() {
   state.maps.forEach(m => {
     const isActive = m.id === state.activeMapId;
     html += `<div style="display:flex;align-items:center;gap:0;background:${isActive?'var(--parchment)':'transparent'};border:1px solid ${isActive?'var(--gold)':'var(--border)'};border-radius:2px;overflow:hidden">
-      <button onclick="switchMap('${m.id}')" style="background:none;border:none;cursor:pointer;padding:0.3rem 0.75rem;font-family:'Cinzel',serif;font-size:0.8rem;color:${isActive?'var(--gold)':'var(--text-muted)'};white-space:nowrap">${esc(m.name)}${m.img ? '' : ' <span style="opacity:0.5;font-size:0.7rem">(no image)</span>'}</button>
+      <button onclick="switchMap('${m.id}')" style="background:none;border:none;cursor:pointer;padding:0.3rem 0.75rem;font-family:var(--font-ui);font-size:0.8rem;color:${isActive?'var(--gold)':'var(--text-muted)'};white-space:nowrap">${esc(m.name)}${m.img ? '' : ' <span style="opacity:0.5;font-size:0.7rem">(no image)</span>'}</button>
       ${state.maps.length > 1 ? `<button onclick="deleteMap('${m.id}')" style="background:none;border:none;border-left:1px solid var(--border);cursor:pointer;padding:0.3rem 0.4rem;color:var(--text-muted);font-size:0.8rem;line-height:1" title="Delete map">✕</button>` : ''}
     </div>`;
   });
 
-  html += `<button onclick="addNewMap()" style="background:none;border:1px dashed var(--border);border-radius:2px;cursor:pointer;padding:0.3rem 0.6rem;font-family:'Cinzel',serif;font-size:0.8rem;color:var(--text-muted)" title="Add new map">+ New Map</button>`;
+  html += `<button onclick="addNewMap()" style="background:none;border:1px dashed var(--border);border-radius:2px;cursor:pointer;padding:0.3rem 0.6rem;font-family:var(--font-ui);font-size:0.8rem;color:var(--text-muted)" title="Add new map">+ New Map</button>`;
   bar.innerHTML = html;
 
   // Update map name input
@@ -609,8 +609,8 @@ function redrawMap() {
   if (mapImage) {
     ctx.drawImage(mapImage, rect.x, rect.y, rect.w, rect.h);
   } else {
-    ctx.fillStyle = '#3d2b0e';
-    ctx.font = '16px Cinzel, serif';
+    ctx.fillStyle = '#a08a62';
+    ctx.font = '18px "Crimson Pro", Georgia, serif';
     ctx.textAlign = 'center';
     ctx.fillText('Upload a map image to begin', canvas.width/2, canvas.height/2);
   }
@@ -652,6 +652,7 @@ function drawToken(t, gs) {
   }
 
   // Circle bg
+  // Canvas can't read CSS variables, so token colours are fixed
   const typeColor = t.type === 'player' ? '#2d6a2d' : t.type === 'npc' ? '#2a5a8b' : '#8b1a1a';
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI*2);
@@ -692,7 +693,7 @@ function drawToken(t, gs) {
   ctx.globalAlpha = t.hidden ? 0.5 : 1;
   ctx.setLineDash([]);
   ctx.fillStyle = 'rgba(0,0,0,0.6)';
-  ctx.font = '11px Cinzel, serif';
+  ctx.font = '600 13px "Crimson Pro", Georgia, serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   const metrics = ctx.measureText(t.name);
@@ -810,7 +811,7 @@ function showTokenPopup(t, x, y) {
     <div class="token-popup-meta">${t.type}${t.hidden ? ' (hidden)' : ''}</div>
     ${c ? `<div class="token-popup-hp">
       <div style="font-size:0.8rem">${c.currentHp}/${c.maxHp} HP · ${getClass(c.class)} ${c.level}</div>
-      <div class="token-popup-bar"><div class="token-popup-fill" style="width:${hpPct}%;background:${hpPct>60?'#2d6a2d':hpPct>25?'#8b6914':'#8b1a1a'}"></div></div>
+      <div class="token-popup-bar"><div class="token-popup-fill" style="width:${hpPct}%;background:${hpPct>60?'var(--green-health)':hpPct>25?'var(--amber)':'var(--blood)'}"></div></div>
     </div>` : ''}`;
   popup.style.left = Math.min(x + 10, canvas.width - 200) + 'px';
   popup.style.top = Math.min(y + 10, canvas.height - 120) + 'px';

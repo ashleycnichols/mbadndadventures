@@ -7,11 +7,16 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
 <script type="module" src="js/firebase.js"></script>
 <link rel="stylesheet" href="css/styles.css">
+<script>
+  // Apply this device's theme before the page draws (light unless dark was chosen)
+  document.documentElement.dataset.theme = localStorage.getItem('chronicler_theme') || 'light';
+</script>
 </head>
 <body>
 
 <!-- LOGIN -->
 <div id="login-screen">
+  <button class="theme-toggle theme-toggle-login" onclick="toggleTheme()" title="Switch between light and dark (this device only)"></button>
   <div class="login-title">The Chronicler</div>
   <div class="login-subtitle">Campaign Management Platform</div>
   <div class="login-card">
@@ -62,7 +67,8 @@
       <button class="nav-tab" id="settings-tab" onclick="showPanel('settings',this)">Settings</button>
     </div>
     <div style="display:flex;align-items:center;gap:0.75rem">
-      <span id="sync-status" style="font-family:'Cinzel',serif;font-size:0.7rem;color:var(--text-muted)">⚪ Local only</span>
+      <button class="theme-toggle" onclick="toggleTheme()" title="Switch between light and dark (this device only)"></button>
+      <span id="sync-status" style="font-size:0.85rem;color:#cdb791">⚪ Local only</span>
       <div class="user-badge" id="user-badge" onclick="logout()" title="Click to log out"></div>
     </div>
   </div>

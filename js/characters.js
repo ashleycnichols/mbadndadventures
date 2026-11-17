@@ -11,7 +11,7 @@ function renderCharacters() {
   let html = '';
   chars.forEach(c => {
     const hpPct = Math.max(0, Math.round(c.currentHp / c.maxHp * 100));
-    const hpColor = hpPct > 60 ? '#2d6a2d' : hpPct > 25 ? '#8b6914' : '#8b1a1a';
+    const hpColor = hpPct > 60 ? 'var(--green-health)' : hpPct > 25 ? 'var(--amber)' : 'var(--blood)';
     const cardClick = isDM ? `editCharacter('${c.id}')` : `setActiveChar('${c.id}');showPanel('sheet',document.getElementById('sheet-tab'))`;
     html += `<div class="character-card" style="position:relative" onclick="${cardClick}">
       ${isDM ? `<button onclick="event.stopPropagation();confirmDeleteChar('${c.id}')" style="position:absolute;top:0.5rem;right:0.5rem;background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:1.1rem;line-height:1;padding:0.2rem 0.4rem;border-radius:2px;transition:color 0.15s" onmouseover="this.style.color='var(--blood)'" onmouseout="this.style.color='var(--text-muted)'" title="Delete character">\u2715</button>` : ''}
@@ -44,8 +44,8 @@ function confirmDeleteChar(id) {
   overlay.id = 'delete-confirm-overlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:4000;display:flex;align-items:center;justify-content:center;padding:1rem';
   overlay.innerHTML = `<div style="background:var(--parchment);border:2px solid var(--blood);border-radius:2px;padding:1.5rem 2rem;max-width:380px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
-    <div style="font-family:'Cinzel Decorative',serif;font-size:1rem;color:var(--blood);margin-bottom:0.75rem">Delete Character?</div>
-    <div style="font-family:'Cinzel',serif;font-size:1.1rem;color:var(--text-main);margin-bottom:0.5rem">${esc(c.name) || 'Unnamed'}</div>
+    <div style="font-family:var(--font-display);font-size:1rem;color:var(--blood);margin-bottom:0.75rem">Delete Character?</div>
+    <div style="font-family:var(--font-heading);font-size:1.1rem;color:var(--text-main);margin-bottom:0.5rem">${esc(c.name) || 'Unnamed'}</div>
     <div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1.25rem">${esc(getRace(c.race))} ${esc(getClass(c.class))} · Level ${c.level}<br><em>This cannot be undone.</em></div>
     <div style="display:flex;gap:0.75rem;justify-content:center">
       <button class="btn-secondary btn-sm" onclick="document.getElementById('delete-confirm-overlay').remove()">Cancel</button>

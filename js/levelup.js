@@ -94,7 +94,7 @@ function renderLevelUpModal(c, changes) {
   changes.forEach((ch, idx) => {
     if (ch.type === 'info') {
       choiceHtml += `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.6rem 0.75rem;background:var(--parchment);border:1px solid var(--border);border-radius:2px;margin-bottom:0.5rem">
-        <span style="font-family:'Cinzel',serif;font-size:0.8rem;color:var(--text-muted)">${ch.label}</span>
+        <span style="font-family:var(--font-ui);font-size:0.8rem;color:var(--text-muted)">${ch.label}</span>
         <span style="font-size:0.85rem;color:var(--green-health);font-weight:600">${ch.value}</span>
       </div>`;
     }
@@ -102,20 +102,20 @@ function renderLevelUpModal(c, changes) {
     if (ch.type === 'asi') {
       const asi = choices.asi || { mode:'double', stat:'str' };
       choiceHtml += `<div style="padding:0.75rem;background:var(--parchment);border:1px solid var(--gold);border-radius:2px;margin-bottom:0.5rem">
-        <div style="font-family:'Cinzel',serif;font-size:0.8rem;color:var(--gold);margin-bottom:0.6rem">${ch.label}</div>
+        <div style="font-family:var(--font-ui);font-size:0.8rem;color:var(--gold-text);margin-bottom:0.6rem">${ch.label}</div>
         <div style="display:flex;gap:0.5rem;margin-bottom:0.6rem">
-          <button onclick="levelUpSetASIMode('double')" style="flex:1;padding:0.35rem;border:2px solid ${asi.mode==='double'?'var(--gold)':'var(--border)'};background:${asi.mode==='double'?'rgba(201,148,42,0.15)':'transparent'};border-radius:2px;cursor:pointer;font-family:'Cinzel',serif;font-size:0.75rem">+2 to one</button>
-          <button onclick="levelUpSetASIMode('split')" style="flex:1;padding:0.35rem;border:2px solid ${asi.mode==='split'?'var(--gold)':'var(--border)'};background:${asi.mode==='split'?'rgba(201,148,42,0.15)':'transparent'};border-radius:2px;cursor:pointer;font-family:'Cinzel',serif;font-size:0.75rem">+1 to two</button>
+          <button onclick="levelUpSetASIMode('double')" style="flex:1;padding:0.35rem;border:2px solid ${asi.mode==='double'?'var(--gold)':'var(--border)'};background:${asi.mode==='double'?'rgba(201,148,42,0.15)':'transparent'};border-radius:2px;cursor:pointer;font-family:var(--font-ui);font-size:0.75rem">+2 to one</button>
+          <button onclick="levelUpSetASIMode('split')" style="flex:1;padding:0.35rem;border:2px solid ${asi.mode==='split'?'var(--gold)':'var(--border)'};background:${asi.mode==='split'?'rgba(201,148,42,0.15)':'transparent'};border-radius:2px;cursor:pointer;font-family:var(--font-ui);font-size:0.75rem">+1 to two</button>
         </div>
         ${asi.mode === 'double' ? `
-        <select onchange="levelUpState.choices.asi={mode:'double',stat:this.value}" style="width:100%;padding:0.4rem;border:1px solid var(--border);background:var(--parchment);border-radius:2px;font-family:'Cinzel',serif;font-size:0.85rem">
+        <select onchange="levelUpState.choices.asi={mode:'double',stat:this.value}" style="width:100%;padding:0.4rem;border:1px solid var(--border);background:var(--parchment);border-radius:2px;font-family:var(--font-ui);font-size:0.85rem">
           ${['str','dex','con','int','wis','cha'].map(s => `<option value="${s}" ${asi.stat===s?'selected':''}>${{str:'Strength',dex:'Dexterity',con:'Constitution',int:'Intelligence',wis:'Wisdom',cha:'Charisma'}[s]} (${c.stats[s]||10} → ${Math.min(20,(c.stats[s]||10)+2)})</option>`).join('')}
         </select>` : `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem">
-          <select onchange="levelUpState.choices.asi={mode:'split',stat1:this.value,stat2:levelUpState.choices.asi?.stat2||'dex'}" style="padding:0.4rem;border:1px solid var(--border);background:var(--parchment);border-radius:2px;font-family:'Cinzel',serif;font-size:0.8rem">
+          <select onchange="levelUpState.choices.asi={mode:'split',stat1:this.value,stat2:levelUpState.choices.asi?.stat2||'dex'}" style="padding:0.4rem;border:1px solid var(--border);background:var(--parchment);border-radius:2px;font-family:var(--font-ui);font-size:0.8rem">
             ${['str','dex','con','int','wis','cha'].map(s => `<option value="${s}" ${(asi.stat1||'str')===s?'selected':''}>${{str:'STR',dex:'DEX',con:'CON',int:'INT',wis:'WIS',cha:'CHA'}[s]} +1</option>`).join('')}
           </select>
-          <select onchange="levelUpState.choices.asi={mode:'split',stat1:levelUpState.choices.asi?.stat1||'str',stat2:this.value}" style="padding:0.4rem;border:1px solid var(--border);background:var(--parchment);border-radius:2px;font-family:'Cinzel',serif;font-size:0.8rem">
+          <select onchange="levelUpState.choices.asi={mode:'split',stat1:levelUpState.choices.asi?.stat1||'str',stat2:this.value}" style="padding:0.4rem;border:1px solid var(--border);background:var(--parchment);border-radius:2px;font-family:var(--font-ui);font-size:0.8rem">
             ${['str','dex','con','int','wis','cha'].map(s => `<option value="${s}" ${(asi.stat2||'dex')===s?'selected':''}>${{str:'STR',dex:'DEX',con:'CON',int:'INT',wis:'WIS',cha:'CHA'}[s]} +1</option>`).join('')}
           </select>
         </div>`}
@@ -125,11 +125,11 @@ function renderLevelUpModal(c, changes) {
     if (ch.type === 'cantrip') {
       const picked = choices.cantrips || [];
       choiceHtml += `<div style="padding:0.75rem;background:var(--parchment);border:1px solid var(--gold);border-radius:2px;margin-bottom:0.5rem">
-        <div style="font-family:'Cinzel',serif;font-size:0.8rem;color:var(--gold);margin-bottom:0.5rem">${ch.label} <span style="color:var(--text-muted)">(${picked.length}/${ch.count} chosen)</span></div>
+        <div style="font-family:var(--font-ui);font-size:0.8rem;color:var(--gold-text);margin-bottom:0.5rem">${ch.label} <span style="color:var(--text-muted)">(${picked.length}/${ch.count} chosen)</span></div>
         <div style="max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:0.25rem">
           ${levelUpState.accessibleCantrips.map(sp => `<label style="display:flex;align-items:center;gap:0.5rem;padding:0.3rem 0.4rem;cursor:pointer;border-radius:2px;font-size:0.85rem;${picked.includes(sp.id)?'background:rgba(201,148,42,0.15)':''}">
             <input type="checkbox" ${picked.includes(sp.id)?'checked':''} ${!picked.includes(sp.id)&&picked.length>=ch.count?'disabled':''} onchange="levelUpToggleSpell('cantrips','${sp.id}',this.checked,${ch.count})" style="accent-color:var(--gold)">
-            <span style="font-family:'Cinzel',serif">${sp.name}</span>
+            <span style="font-family:var(--font-ui)">${sp.name}</span>
             <span style="font-size:0.75rem;color:var(--text-muted);margin-left:auto">${sp.school}</span>
           </label>`).join('')}
         </div>
@@ -139,11 +139,11 @@ function renderLevelUpModal(c, changes) {
     if (ch.type === 'spell') {
       const picked = choices.spells || [];
       choiceHtml += `<div style="padding:0.75rem;background:var(--parchment);border:1px solid var(--gold);border-radius:2px;margin-bottom:0.5rem">
-        <div style="font-family:'Cinzel',serif;font-size:0.8rem;color:var(--gold);margin-bottom:0.5rem">${ch.label} <span style="color:var(--text-muted)">(${picked.length}/${ch.count} chosen · up to level ${levelUpState.newMaxSlot})</span></div>
+        <div style="font-family:var(--font-ui);font-size:0.8rem;color:var(--gold-text);margin-bottom:0.5rem">${ch.label} <span style="color:var(--text-muted)">(${picked.length}/${ch.count} chosen · up to level ${levelUpState.newMaxSlot})</span></div>
         <div style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:0.2rem">
           ${levelUpState.accessibleSpells.map(sp => `<label style="display:flex;align-items:center;gap:0.5rem;padding:0.3rem 0.4rem;cursor:pointer;border-radius:2px;font-size:0.85rem;${picked.includes(sp.id)?'background:rgba(201,148,42,0.15)':''}">
             <input type="checkbox" ${picked.includes(sp.id)?'checked':''} ${!picked.includes(sp.id)&&picked.length>=ch.count?'disabled':''} onchange="levelUpToggleSpell('spells','${sp.id}',this.checked,${ch.count})" style="accent-color:var(--gold)">
-            <span style="font-family:'Cinzel',serif">${sp.name}</span>
+            <span style="font-family:var(--font-ui)">${sp.name}</span>
             <span style="font-size:0.72rem;color:var(--text-muted);margin-left:auto">Lv${sp.level} ${sp.school}</span>
           </label>`).join('')}
         </div>
@@ -154,9 +154,9 @@ function renderLevelUpModal(c, changes) {
   modal.innerHTML = `
     <div style="background:var(--parchment);border:2px solid var(--gold);border-radius:2px;max-width:540px;width:100%;padding:1.5rem;box-shadow:0 24px 64px rgba(0,0,0,0.5);max-height:90vh;overflow-y:auto">
       <div style="text-align:center;margin-bottom:1.25rem">
-        <div style="font-family:'Cinzel Decorative',serif;font-size:0.85rem;color:var(--gold);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.3rem">Level Up</div>
-        <div style="font-family:'Cinzel Decorative',serif;font-size:1.5rem;color:var(--text-main)">${esc(c.name)}</div>
-        <div style="font-family:'Cinzel',serif;font-size:0.85rem;color:var(--text-muted);margin-top:0.25rem">${cls?.name||''} · Level ${c.level} → <strong style="color:var(--gold)">${newLevel}</strong></div>
+        <div style="font-family:var(--font-display);font-size:0.85rem;color:var(--gold-text);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.3rem">Level Up</div>
+        <div style="font-family:var(--font-display);font-size:1.5rem;color:var(--text-main)">${esc(c.name)}</div>
+        <div style="font-family:var(--font-ui);font-size:0.85rem;color:var(--text-muted);margin-top:0.25rem">${cls?.name||''} · Level ${c.level} → <strong style="color:var(--gold-text)">${newLevel}</strong></div>
       </div>
       ${choiceHtml}
       <div style="display:flex;gap:0.75rem;margin-top:1.25rem">

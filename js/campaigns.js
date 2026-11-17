@@ -62,7 +62,7 @@ function openCreateCampaign() {
   overlay.id = 'create-campaign-overlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:4000;display:flex;align-items:center;justify-content:center;padding:1rem';
   overlay.innerHTML = `<div style="background:var(--parchment);border:2px solid var(--gold);border-radius:2px;padding:1.5rem;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
-    <div style="font-family:'Cinzel Decorative',serif;font-size:1rem;color:var(--text-main);margin-bottom:1rem">Create a Campaign</div>
+    <div style="font-family:var(--font-display);font-size:1rem;color:var(--text-main);margin-bottom:1rem">Create a Campaign</div>
     <div class="input-group"><label>Campaign name</label><input class="parchment-input" id="cc-name" placeholder="e.g. Plexis"></div>
     <div class="input-group"><label>DM passphrase for this campaign</label><input class="parchment-input" id="cc-pass" type="password"></div>
     <div class="input-group"><label>Confirm DM passphrase</label><input class="parchment-input" id="cc-pass2" type="password"></div>

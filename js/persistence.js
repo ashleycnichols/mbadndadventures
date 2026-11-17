@@ -315,10 +315,10 @@ function updateSyncStatus(status) {
   const el = document.getElementById('sync-status');
   if (!el) return;
   const styles = {
-    connected: { text: '🟢 Syncing', color: 'var(--green-health)' },
-    connecting: { text: '🟡 Connecting…', color: '#8b6914' },
-    off:        { text: '⚪ Local only', color: 'var(--text-muted)' },
-    error:      { text: '🔴 Offline: changes stay on this device', color: 'var(--blood)' },
+    connected: { text: '🟢 Syncing', color: '#8fd48f' },
+    connecting: { text: '🟡 Connecting…', color: '#e3b545' },
+    off:        { text: '⚪ Local only', color: '#cdb791' },
+    error:      { text: '🔴 Offline: changes stay on this device', color: '#ff9a8a' },
   };
   const s = styles[status] || styles.off;
   el.textContent = s.text;

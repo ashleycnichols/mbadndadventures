@@ -65,8 +65,8 @@ function renderMySheet() {
   }
   const mine = myCharacters();
   const picker = mine.length > 1 ? `<div style="max-width:900px;margin:0 auto;padding:1rem 1rem 0;display:flex;align-items:center;gap:0.5rem">
-      <span style="font-family:'Cinzel',serif;font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em">Playing as</span>
-      <select onchange="setActiveChar(this.value)" style="padding:0.3rem 0.5rem;border:1px solid var(--border);background:var(--parchment);border-radius:2px;font-family:'Cinzel',serif;font-size:0.85rem">
+      <span style="font-family:var(--font-ui);font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em">Playing as</span>
+      <select onchange="setActiveChar(this.value)" style="padding:0.3rem 0.5rem;border:1px solid var(--border);background:var(--parchment);border-radius:2px;font-family:var(--font-ui);font-size:0.85rem">
         ${mine.map(ch => `<option value="${ch.id}" ${ch.id === c.id ? 'selected' : ''}>${esc(ch.name) || 'Unnamed'}</option>`).join('')}
       </select>
     </div>` : '';
@@ -95,7 +95,7 @@ function renderSheet(c) {
   const ac = calcAC(c);
 
   const hpPct = Math.max(0, Math.round(c.currentHp / c.maxHp * 100));
-  const hpColor = hpPct > 60 ? 'var(--green-health)' : hpPct > 25 ? '#8b6914' : 'var(--blood)';
+  const hpColor = hpPct > 60 ? 'var(--green-health)' : hpPct > 25 ? 'var(--amber)' : 'var(--blood)';
 
   const spellObjs = c.spells.map(id => SPELLS.find(s => s.id === id)).filter(Boolean);
   const weaponObjs = c.weapons.map(id => WEAPONS.find(w => w.id === id)).filter(Boolean);
@@ -118,15 +118,15 @@ function renderSheet(c) {
             ${c.portrait ? `<img src="${c.portrait}" style="width:100%;height:100%;object-fit:cover">` : `<span style="font-size:2rem;opacity:0.4">🧙</span>`}
           </div>
           <input type="file" id="portrait-upload-${c.id}" accept="image/*" style="display:none" onchange="uploadPortrait('${c.id}', this)">
-          <div style="font-size:0.55rem;font-family:'Cinzel',serif;color:var(--text-muted);text-align:center;margin-top:0.2rem;opacity:0.7">click to change</div>
+          <div style="font-size:0.72rem;font-family:var(--font-ui);color:var(--text-muted);text-align:center;margin-top:0.2rem;opacity:0.7">click to change</div>
         </div>
         <div>
-          <div style="font-family:'Cinzel Decorative',serif;font-size:1.4rem;color:var(--text-main)">${esc(c.name) || 'Unnamed Hero'}</div>
-          <div style="font-family:'Cinzel',serif;font-size:0.8rem;color:var(--text-muted);margin-top:0.2rem">${race?.name||''} ${cls?.name||''}${c.subclass ? ' (' + esc(c.subclass) + ')' : ''} · Level ${c.level} · ${bg?.name||'No Background'}${c.player ? ' · ' + esc(c.player) : ''}</div>
+          <div style="font-family:var(--font-display);font-size:1.4rem;color:var(--text-main)">${esc(c.name) || 'Unnamed Hero'}</div>
+          <div style="font-family:var(--font-ui);font-size:0.8rem;color:var(--text-muted);margin-top:0.2rem">${race?.name||''} ${cls?.name||''}${c.subclass ? ' (' + esc(c.subclass) + ')' : ''} · Level ${c.level} · ${bg?.name||'No Background'}${c.player ? ' · ' + esc(c.player) : ''}</div>
           ${SUBCLASSES[c.class] && c.level >= (SUBCLASS_LEVEL[c.class]||3) ? `
           <div style="display:flex;align-items:center;gap:0.4rem;margin-top:0.35rem">
-            <span style="font-family:'Cinzel',serif;font-size:0.7rem;color:var(--gold);text-transform:uppercase;letter-spacing:0.05em">${SUBCLASS_LABEL[c.class]||'Subclass'}:</span>
-            <select onchange="setSubclass('${c.id}', this.value)" style="padding:0.25rem 0.4rem;border:1px solid ${c.subclass?'var(--border)':'var(--gold)'};background:var(--parchment);border-radius:2px;font-family:'Cinzel',serif;font-size:0.75rem;color:var(--text-main)">
+            <span style="font-family:var(--font-ui);font-size:0.7rem;color:var(--gold-text);text-transform:uppercase;letter-spacing:0.05em">${SUBCLASS_LABEL[c.class]||'Subclass'}:</span>
+            <select onchange="setSubclass('${c.id}', this.value)" style="padding:0.25rem 0.4rem;border:1px solid ${c.subclass?'var(--border)':'var(--gold)'};background:var(--parchment);border-radius:2px;font-family:var(--font-ui);font-size:0.75rem;color:var(--text-main)">
               <option value="" ${!c.subclass?'selected':''}>— choose —</option>
               ${SUBCLASSES[c.class].map(sc => `<option value="${sc}" ${c.subclass===sc?'selected':''}>${sc}</option>`).join('')}
             </select>
@@ -136,7 +136,7 @@ function renderSheet(c) {
       <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
         <button class="btn-secondary btn-sm" onclick="doShortRest('${c.id}')">☕ Short Rest</button>
         <button class="btn-secondary btn-sm" onclick="doLongRest('${c.id}')">🌙 Long Rest</button>
-        <button class="btn-secondary btn-sm" style="border-color:var(--gold);color:var(--gold)" onclick="openLevelUp('${c.id}')">⬆ Level Up</button>
+        <button class="btn-secondary btn-sm" style="border-color:var(--gold);color:var(--gold-text)" onclick="openLevelUp('${c.id}')">⬆ Level Up</button>
         <button class="btn-secondary btn-sm" onclick="editCharacter('${c.id}')">✏ Edit</button>
         <button onclick="toggleInspiration('${c.id}')" title="${c.inspiration ? 'Remove Inspiration' : 'Grant Inspiration'}" style="background:${c.inspiration ? 'rgba(201,148,42,0.2)' : 'none'};border:1px solid ${c.inspiration ? 'var(--gold)' : 'var(--border)'};border-radius:2px;cursor:pointer;padding:0.3rem 0.6rem;font-size:1rem;line-height:1;transition:all 0.15s" title="Inspiration">⭐</button>
       </div>
@@ -154,12 +154,12 @@ function renderSheet(c) {
         cls?.spellcaster ? ['Spell Atk', (spellAtk>=0?'+':'')+spellAtk] : null,
       ].filter(Boolean).map(([label,val,click,tip]) => `
         <div ${click ? `onclick="${click}" title="${tip}"` : ''} style="background:var(--parchment-dark);border:1px solid ${click ? 'var(--gold)' : 'var(--border)'};border-radius:2px;padding:0.5rem;text-align:center;${click ? 'cursor:pointer' : ''}">
-          <div style="font-size:1.1rem;font-family:'Cinzel Decorative',serif;color:var(--gold)">${val}</div>
-          <div style="font-size:0.65rem;font-family:'Cinzel',serif;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em">${label}</div>
+          <div style="font-size:1.1rem;font-family:var(--font-ui);font-weight:600;font-variant-numeric:lining-nums;color:var(--gold-text)">${val}</div>
+          <div style="font-size:0.72rem;font-family:var(--font-ui);color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em">${label}</div>
         </div>`).join('')}
       ${c.inspiration ? `<div style="background:rgba(201,148,42,0.15);border:1px solid var(--gold);border-radius:2px;padding:0.5rem;text-align:center">
         <div style="font-size:1.1rem">⭐</div>
-        <div style="font-size:0.65rem;font-family:'Cinzel',serif;color:var(--gold);text-transform:uppercase;letter-spacing:0.05em">Inspired</div>
+        <div style="font-size:0.72rem;font-family:var(--font-ui);color:var(--gold-text);text-transform:uppercase;letter-spacing:0.05em">Inspired</div>
       </div>` : ''}
     </div>
 
@@ -169,11 +169,11 @@ function renderSheet(c) {
 
         <!-- HP BLOCK -->
         <div style="background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:1rem">
-          <div style="font-family:'Cinzel',serif;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.5rem">Hit Points</div>
+          <div style="font-family:var(--font-ui);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.5rem">Hit Points</div>
           <div style="display:flex;align-items:baseline;gap:0.5rem;margin-bottom:0.4rem">
-            <span id="hp-display-${c.id}" style="font-family:'Cinzel Decorative',serif;font-size:2.5rem;color:${hpColor};line-height:1">${c.currentHp}</span>
+            <span id="hp-display-${c.id}" style="font-family:var(--font-ui);font-weight:600;font-variant-numeric:lining-nums;font-size:2.5rem;color:${hpColor};line-height:1">${c.currentHp}</span>
             <span style="color:var(--text-muted);font-size:0.9rem">/ ${c.maxHp}</span>
-            ${c.tempHp > 0 ? `<span style="font-size:0.8rem;color:#4a7ca5;margin-left:0.25rem">(+${c.tempHp} temp)</span>` : ''}
+            ${c.tempHp > 0 ? `<span style="font-size:0.8rem;color:var(--blue);margin-left:0.25rem">(+${c.tempHp} temp)</span>` : ''}
           </div>
           <div class="char-hp-bar" style="margin-bottom:0.75rem"><div class="char-hp-fill" style="width:${hpPct}%;background:${hpColor}"></div></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin-bottom:0.5rem">
@@ -181,15 +181,15 @@ function renderSheet(c) {
             <button class="btn-secondary btn-sm" style="color:var(--blood);border-color:var(--blood)" onclick="sheetAdjustHP('${c.id}',-1)">− Damage</button>
           </div>
           <div style="display:flex;gap:0.4rem;align-items:center">
-            <input type="number" id="hp-adjust-${c.id}" min="1" placeholder="Amount" style="flex:1;padding:0.3rem 0.5rem;border:1px solid var(--parchment-deeper);border-radius:2px;font-size:0.85rem;background:rgba(255,255,255,0.5);font-family:'Crimson Pro',serif">
-            <input type="number" id="temp-hp-input-${c.id}" min="0" placeholder="Temp HP" style="flex:1;padding:0.3rem 0.5rem;border:1px solid var(--parchment-deeper);border-radius:2px;font-size:0.85rem;background:rgba(255,255,255,0.5);font-family:'Crimson Pro',serif" oninput="setTempHP('${c.id}',this.value)" value="${c.tempHp||''}">
+            <input type="number" id="hp-adjust-${c.id}" min="1" placeholder="Amount" style="flex:1;padding:0.3rem 0.5rem;border:1px solid var(--parchment-deeper);border-radius:2px;font-size:0.85rem;background:var(--input-bg);font-family:var(--font-ui)">
+            <input type="number" id="temp-hp-input-${c.id}" min="0" placeholder="Temp HP" style="flex:1;padding:0.3rem 0.5rem;border:1px solid var(--parchment-deeper);border-radius:2px;font-size:0.85rem;background:var(--input-bg);font-family:var(--font-ui)" oninput="setTempHP('${c.id}',this.value)" value="${c.tempHp||''}">
           </div>
         </div>
 
         <!-- DEATH SAVES -->
         ${c.currentHp <= 0 ? `
         <div style="background:var(--parchment-dark);border:2px solid var(--blood);border-radius:2px;padding:1rem">
-          <div style="font-family:'Cinzel',serif;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--blood);margin-bottom:0.6rem">Death Saving Throws</div>
+          <div style="font-family:var(--font-ui);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--blood);margin-bottom:0.6rem">Death Saving Throws</div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem">
             <span style="font-size:0.85rem;color:var(--green-health)">Successes</span>
             <div style="display:flex;gap:0.4rem">${[0,1,2].map(i => `<button onclick="toggleDeathSave('${c.id}','success',${i})" style="width:24px;height:24px;border-radius:50%;border:2px solid var(--green-health);background:${i<c.deathSaves.success?'var(--green-health)':'transparent'};cursor:pointer"></button>`).join('')}</div>
@@ -202,9 +202,9 @@ function renderSheet(c) {
 
         <!-- HIT DICE -->
         <div style="background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:1rem">
-          <div style="font-family:'Cinzel',serif;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.5rem">Hit Dice · d${cls?.hd||8}</div>
+          <div style="font-family:var(--font-ui);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.5rem">Hit Dice · d${cls?.hd||8}</div>
           <div style="display:flex;align-items:center;gap:0.75rem">
-            <span style="font-family:'Cinzel Decorative',serif;font-size:1.5rem;color:var(--gold)">${c.level - (c.hitDiceUsed||0)}</span>
+            <span style="font-family:var(--font-ui);font-weight:600;font-variant-numeric:lining-nums;font-size:1.5rem;color:var(--gold-text)">${c.level - (c.hitDiceUsed||0)}</span>
             <span style="color:var(--text-muted);font-size:0.85rem">/ ${c.level} remaining</span>
             <button class="btn-secondary btn-sm" onclick="useHitDie('${c.id}')" ${(c.hitDiceUsed||0)>=c.level?'disabled':''}>Use</button>
           </div>
@@ -212,15 +212,15 @@ function renderSheet(c) {
 
         <!-- ABILITY SCORES -->
         <div style="background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:1rem">
-          <div style="font-family:'Cinzel',serif;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.5rem">Ability Scores</div>
+          <div style="font-family:var(--font-ui);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.5rem">Ability Scores</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem">
             ${stats.map(s => {
               const val = c.stats[s]||10;
               const mod = getMod(s);
               return `<div style="background:var(--parchment);border:1px solid var(--parchment-deeper);border-radius:2px;padding:0.4rem 0.5rem;display:flex;justify-content:space-between;align-items:center">
-                <span style="font-family:'Cinzel',serif;font-size:0.7rem;color:var(--text-muted)">${shortLabels[s]}</span>
+                <span style="font-family:var(--font-ui);font-size:0.7rem;color:var(--text-muted)">${shortLabels[s]}</span>
                 <span style="font-size:0.9rem;font-weight:600">${val}</span>
-                <span style="font-family:'Cinzel',serif;font-size:0.8rem;color:var(--gold)">${mod>=0?'+':''}${mod}</span>
+                <span style="font-family:var(--font-ui);font-size:0.8rem;color:var(--gold-text)">${mod>=0?'+':''}${mod}</span>
               </div>`;
             }).join('')}
           </div>
@@ -228,14 +228,14 @@ function renderSheet(c) {
 
         <!-- SAVING THROWS -->
         <div style="background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:1rem">
-          <div style="font-family:'Cinzel',serif;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.5rem">Saving Throws</div>
+          <div style="font-family:var(--font-ui);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.5rem">Saving Throws</div>
           <div style="display:flex;flex-direction:column;gap:0.2rem">
             ${stats.map(s => {
               const bonus = saveBonus(c, s);
               const prof = isSaveProficient(c, s);
               return `<div style="display:flex;justify-content:space-between;font-size:0.85rem">
                 <span style="color:var(--text-muted)"><span style="color:${prof ? 'var(--gold)' : 'var(--border)'}" title="${prof ? 'Proficient' : ''}">${prof ? '●' : '○'}</span> ${labels[s]}</span>
-                <span style="font-family:'Cinzel',serif;color:var(--text-main)">${fmtMod(bonus)}</span>
+                <span style="font-family:var(--font-ui);color:var(--text-main)">${fmtMod(bonus)}</span>
               </div>`;
             }).join('')}
           </div>
@@ -243,18 +243,18 @@ function renderSheet(c) {
 
         <!-- CONDITIONS -->
         <div style="background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:1rem">
-          <div style="font-family:'Cinzel',serif;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.5rem">Conditions</div>
+          <div style="font-family:var(--font-ui);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.5rem">Conditions</div>
           <div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-bottom:0.5rem">
-            ${c.conditions.length ? c.conditions.map(cond => `<span style="background:rgba(139,26,26,0.15);border:1px solid var(--blood);border-radius:10px;padding:0.15rem 0.6rem;font-size:0.75rem;font-family:'Cinzel',serif;cursor:pointer" onclick="removeCondition('${c.id}','${cond}')" title="Click to remove">${cond} ✕</span>`).join('') : '<span style="font-size:0.8rem;color:var(--text-muted);font-style:italic">None</span>'}
+            ${c.conditions.length ? c.conditions.map(cond => `<span style="background:rgba(139,26,26,0.15);border:1px solid var(--blood);border-radius:10px;padding:0.15rem 0.6rem;font-size:0.75rem;font-family:var(--font-ui);cursor:pointer" onclick="removeCondition('${c.id}','${cond}')" title="Click to remove">${cond} ✕</span>`).join('') : '<span style="font-size:0.8rem;color:var(--text-muted);font-style:italic">None</span>'}
           </div>
-          <select id="condition-select-${c.id}" style="font-size:0.8rem;padding:0.25rem;border:1px solid var(--border);background:var(--parchment);border-radius:2px;font-family:'Cinzel',serif" onchange="addCondition('${c.id}',this)">
+          <select id="condition-select-${c.id}" style="font-size:0.8rem;padding:0.25rem;border:1px solid var(--border);background:var(--parchment);border-radius:2px;font-family:var(--font-ui)" onchange="addCondition('${c.id}',this)">
             <option value="">+ Add condition…</option>
             ${CONDITIONS.map(cond => `<option value="${cond}">${cond}</option>`).join('')}
           </select>
           ${concentrationControl(c)}
           <div style="margin-top:0.5rem">
             <span style="font-size:0.8rem;color:var(--text-muted)">Exhaustion: </span>
-            ${[1,2,3,4,5,6].map(i => `<button onclick="setExhaustion('${c.id}',${i===c.exhaustion?i-1:i})" style="width:20px;height:20px;border-radius:50%;border:1px solid var(--border);background:${i<=c.exhaustion?'var(--blood)':'transparent'};font-size:0.6rem;cursor:pointer;margin-left:2px" title="Level ${i}">${i}</button>`).join('')}
+            ${[1,2,3,4,5,6].map(i => `<button onclick="setExhaustion('${c.id}',${i===c.exhaustion?i-1:i})" style="width:20px;height:20px;border-radius:50%;border:1px solid var(--border);background:${i<=c.exhaustion?'var(--blood)':'transparent'};font-size:0.72rem;cursor:pointer;margin-left:2px" title="Level ${i}">${i}</button>`).join('')}
           </div>
         </div>
       </div>
@@ -264,14 +264,14 @@ function renderSheet(c) {
 
         <!-- SKILLS -->
         <div style="background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:1rem">
-          <div style="font-family:'Cinzel',serif;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.5rem">Skills <span style="text-transform:none;letter-spacing:0;font-style:italic">· ● proficient, click to change</span></div>
+          <div style="font-family:var(--font-ui);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.5rem">Skills <span style="text-transform:none;letter-spacing:0;font-style:italic">· ● proficient, click to change</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.15rem">
             ${SKILL_LIST.map(sk => {
               const prof = isSkillProficient(c, sk.name);
               const fromBg = backgroundSkills(c).includes(sk.name);
               return `<div onclick="toggleSkillProf('${c.id}','${sk.name}')" title="${fromBg ? 'Proficient from background' : prof ? 'Proficient. Click to remove' : 'Click to mark proficient'}" style="display:flex;justify-content:space-between;align-items:center;font-size:0.82rem;padding:0.1rem 0.25rem;cursor:${fromBg ? 'default' : 'pointer'}">
                 <span style="color:var(--text-main)"><span style="color:${prof ? 'var(--gold)' : 'var(--border)'}">${prof ? '●' : '○'}</span> ${sk.name} <span style="color:var(--text-muted);font-size:0.72rem">(${shortLabels[sk.ab]})</span></span>
-                <span style="font-family:'Cinzel',serif;color:var(--text-main);font-size:0.8rem">${fmtMod(skillBonus(c, sk.name))}</span>
+                <span style="font-family:var(--font-ui);color:var(--text-main);font-size:0.8rem">${fmtMod(skillBonus(c, sk.name))}</span>
               </div>`;
             }).join('')}
           </div>
@@ -280,17 +280,17 @@ function renderSheet(c) {
         <!-- WEAPONS / ATTACKS -->
         ${weaponObjs.length ? `
         <div style="background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:1rem">
-          <div style="font-family:'Cinzel',serif;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.5rem">Weapons & Attacks</div>
+          <div style="font-family:var(--font-ui);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.5rem">Weapons & Attacks</div>
           <div style="display:grid;grid-template-columns:1fr auto auto auto;gap:0.25rem 0.75rem;align-items:center">
-            <div style="font-size:0.7rem;color:var(--text-muted);font-family:'Cinzel',serif">Name</div>
-            <div style="font-size:0.7rem;color:var(--text-muted);font-family:'Cinzel',serif">Atk</div>
-            <div style="font-size:0.7rem;color:var(--text-muted);font-family:'Cinzel',serif">Dmg</div>
-            <div style="font-size:0.7rem;color:var(--text-muted);font-family:'Cinzel',serif">Type</div>
+            <div style="font-size:0.7rem;color:var(--text-muted);font-family:var(--font-ui)">Name</div>
+            <div style="font-size:0.7rem;color:var(--text-muted);font-family:var(--font-ui)">Atk</div>
+            <div style="font-size:0.7rem;color:var(--text-muted);font-family:var(--font-ui)">Dmg</div>
+            <div style="font-size:0.7rem;color:var(--text-muted);font-family:var(--font-ui)">Type</div>
             ${weaponObjs.map(w => {
               const wa = weaponAttack(c, w);
-              return `<div style="font-family:'Cinzel',serif;font-size:0.85rem">${w.name}${wa.proficient ? '' : ' <span title="Not proficient: no proficiency bonus" style="color:var(--blood)">⚠</span>'}</div>
-                <div style="font-family:'Cinzel',serif;font-size:0.85rem;color:var(--gold)">${fmtMod(wa.atk)}</div>
-                <div style="font-family:'Cinzel',serif;font-size:0.85rem;color:var(--blood)">${wa.dmg}</div>
+              return `<div style="font-family:var(--font-ui);font-size:0.85rem">${w.name}${wa.proficient ? '' : ' <span title="Not proficient: no proficiency bonus" style="color:var(--blood)">⚠</span>'}</div>
+                <div style="font-family:var(--font-ui);font-size:0.85rem;color:var(--gold-text)">${fmtMod(wa.atk)}</div>
+                <div style="font-family:var(--font-ui);font-size:0.85rem;color:var(--blood)">${wa.dmg}</div>
                 <div style="font-size:0.78rem;color:var(--text-muted);font-style:italic">${w.type}</div>`;
             }).join('')}
           </div>
@@ -299,14 +299,14 @@ function renderSheet(c) {
         <!-- SPELL SLOTS -->
         ${cls?.spellcaster && slotCounts.length ? `
         <div style="background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:1rem">
-          <div style="font-family:'Cinzel',serif;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.6rem">Spell Slots</div>
+          <div style="font-family:var(--font-ui);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.6rem">Spell Slots</div>
           ${slotCounts.map((total, i) => {
             if (!total) return '';
             const spellLvl = i + 1;
             const used = c.usedSlots[spellLvl] || 0;
             const remaining = total - used;
             return `<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem">
-              <span style="font-family:'Cinzel',serif;font-size:0.75rem;color:var(--text-muted);width:45px">Lvl ${spellLvl}</span>
+              <span style="font-family:var(--font-ui);font-size:0.75rem;color:var(--text-muted);width:45px">Lvl ${spellLvl}</span>
               <div style="display:flex;gap:0.3rem;flex:1">
                 ${Array.from({length:total},(_,j) => `<button onclick="toggleSlot('${c.id}',${spellLvl},${j})" style="width:22px;height:22px;border-radius:50%;border:2px solid var(--gold);background:${j<remaining?'var(--gold)':'transparent'};cursor:pointer;transition:background 0.15s" title="${j<remaining?'Expend slot':'Slot expended — click to recover'}"></button>`).join('')}
               </div>
@@ -318,9 +318,9 @@ function renderSheet(c) {
         <!-- CANTRIPS -->
         ${cantrips.length ? `
         <div style="background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:1rem">
-          <div style="font-family:'Cinzel',serif;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.4rem">Cantrips (at will)</div>
+          <div style="font-family:var(--font-ui);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.4rem">Cantrips (at will)</div>
           <div style="display:flex;flex-wrap:wrap;gap:0.3rem">
-            ${cantrips.map(sp => `<span onclick="showSheetSpellDetail('${sp.id}','${c.id}')" style="background:var(--parchment);border:1px solid var(--border);border-radius:2px;padding:0.2rem 0.6rem;font-family:'Cinzel',serif;font-size:0.78rem;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">${sp.name}</span>`).join('')}
+            ${cantrips.map(sp => `<span onclick="showSheetSpellDetail('${sp.id}','${c.id}')" style="background:var(--parchment);border:1px solid var(--border);border-radius:2px;padding:0.2rem 0.6rem;font-family:var(--font-ui);font-size:0.78rem;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">${sp.name}</span>`).join('')}
           </div>
         </div>` : ''}
 
@@ -328,14 +328,14 @@ function renderSheet(c) {
         ${cls?.spellcaster ? `
         <div style="background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:1rem">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem">
-            <div style="font-family:'Cinzel',serif;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted)">Spells</div>
-            <button onclick="openAddSpell('${c.id}')" style="background:none;border:1px solid var(--gold);color:var(--gold);border-radius:2px;padding:0.2rem 0.6rem;font-family:'Cinzel',serif;font-size:0.7rem;cursor:pointer">＋ ${c.class==='wizard'?'Copy to Spellbook':'Add Spell'}</button>
+            <div style="font-family:var(--font-ui);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted)">Spells</div>
+            <button onclick="openAddSpell('${c.id}')" style="background:none;border:1px solid var(--gold);color:var(--gold-text);border-radius:2px;padding:0.2rem 0.6rem;font-family:var(--font-ui);font-size:0.7rem;cursor:pointer">＋ ${c.class==='wizard'?'Copy to Spellbook':'Add Spell'}</button>
           </div>
           ${[1,2,3,4,5,6,7,8,9].map(lvl => {
             const group = leveledSpells.filter(s => s.level === lvl);
             if (!group.length) return '';
             return `<div style="margin-bottom:0.5rem">
-              <div style="font-size:0.72rem;font-family:'Cinzel',serif;color:var(--gold);margin-bottom:0.2rem">Level ${lvl}</div>
+              <div style="font-size:0.72rem;font-family:var(--font-ui);color:var(--gold-text);margin-bottom:0.2rem">Level ${lvl}</div>
               ${group.map(sp => `<div onclick="showSheetSpellDetail('${sp.id}','${c.id}')" style="display:flex;justify-content:space-between;font-size:0.85rem;padding:0.2rem 0.25rem;border-bottom:1px solid var(--parchment-deeper);cursor:pointer;border-radius:2px;transition:background 0.12s" onmouseover="this.style.background='rgba(201,148,42,0.1)'" onmouseout="this.style.background=''">
                 <span>${sp.name}</span>
                 <span style="font-size:0.75rem;color:var(--text-muted);font-style:italic">${sp.school}</span>
@@ -347,8 +347,8 @@ function renderSheet(c) {
 
         <!-- INVENTORY -->
         <div style="background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:1rem">
-          <div style="font-family:'Cinzel',serif;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.4rem">Inventory & Equipment</div>
-          <textarea id="inventory-text-${c.id}" style="width:100%;min-height:120px;background:rgba(255,255,255,0.4);border:1px solid var(--parchment-deeper);border-radius:2px;padding:0.5rem;font-family:'Crimson Pro',serif;font-size:0.9rem;color:var(--text-main);resize:vertical;line-height:1.5" onblur="saveInventory('${c.id}',this.value)">${esc(c.inventory)}</textarea>
+          <div style="font-family:var(--font-ui);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.4rem">Inventory & Equipment</div>
+          <textarea id="inventory-text-${c.id}" style="width:100%;min-height:120px;background:var(--input-bg);border:1px solid var(--parchment-deeper);border-radius:2px;padding:0.5rem;font-family:var(--font-ui);font-size:0.9rem;color:var(--text-main);resize:vertical;line-height:1.5" onblur="saveInventory('${c.id}',this.value)">${esc(c.inventory)}</textarea>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.35rem">
             <span id="inventory-save-status-${c.id}" style="font-size:0.72rem;color:var(--text-muted);font-style:italic"></span>
             <button onclick="saveInventoryBtn('${c.id}')" class="btn-primary btn-gold btn-sm" style="width:auto;padding:0.35rem 1rem">💾 Save Inventory</button>
@@ -358,8 +358,8 @@ function renderSheet(c) {
         <!-- BACKSTORY & NOTES -->
         ${c.backstory || c.notes ? `
         <div style="background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:1rem">
-          ${c.backstory ? `<div style="margin-bottom:0.75rem"><div style="font-family:'Cinzel',serif;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.3rem">Backstory</div><p style="font-style:italic;font-size:0.9rem;line-height:1.6;color:var(--text-muted)">${esc(c.backstory)}</p></div>` : ''}
-          ${c.notes ? `<div><div style="font-family:'Cinzel',serif;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.3rem">Notes</div><p style="font-size:0.9rem;line-height:1.6;color:var(--text-muted)">${esc(c.notes)}</p></div>` : ''}
+          ${c.backstory ? `<div style="margin-bottom:0.75rem"><div style="font-family:var(--font-ui);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.3rem">Backstory</div><p style="font-style:italic;font-size:0.9rem;line-height:1.6;color:var(--text-muted)">${esc(c.backstory)}</p></div>` : ''}
+          ${c.notes ? `<div><div style="font-family:var(--font-ui);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.3rem">Notes</div><p style="font-size:0.9rem;line-height:1.6;color:var(--text-muted)">${esc(c.notes)}</p></div>` : ''}
         </div>` : ''}
 
       </div>
@@ -533,18 +533,18 @@ function openAddSpell(charId) {
   modal.innerHTML = `
     <div style="background:var(--parchment);border:2px solid var(--gold);border-radius:2px;max-width:520px;width:100%;padding:1.5rem;box-shadow:0 24px 64px rgba(0,0,0,0.5);max-height:85vh;display:flex;flex-direction:column">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.5rem">
-        <div style="font-family:'Cinzel Decorative',serif;font-size:1.1rem;color:var(--text-main)">${title}</div>
+        <div style="font-family:var(--font-display);font-size:1.1rem;color:var(--text-main)">${title}</div>
         <button onclick="document.getElementById('addspell-modal').remove()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--text-muted);line-height:1">✕</button>
       </div>
       <p style="font-size:0.8rem;color:var(--text-muted);font-style:italic;margin-bottom:0.75rem">${note} Spells up to level ${maxSlot} available.</p>
-      <input id="addspell-filter" placeholder="Search spells..." oninput="filterAddSpellList()" style="width:100%;padding:0.45rem;border:1px solid var(--border);background:rgba(255,255,255,0.4);border-radius:2px;font-family:'Crimson Pro',serif;font-size:0.9rem;margin-bottom:0.5rem">
+      <input id="addspell-filter" placeholder="Search spells..." oninput="filterAddSpellList()" style="width:100%;padding:0.45rem;border:1px solid var(--border);background:var(--input-bg);border-radius:2px;font-family:var(--font-ui);font-size:0.9rem;margin-bottom:0.5rem">
       <div id="addspell-list" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:0.2rem">
         ${available.length ? available.map(sp => `
           <div class="addspell-row" data-name="${sp.name.toLowerCase()}" style="display:flex;align-items:center;gap:0.5rem;padding:0.35rem 0.4rem;border-bottom:1px solid var(--parchment-deeper)">
-            <span style="font-family:'Cinzel',serif;font-size:0.7rem;color:var(--gold);width:38px;flex-shrink:0">${sp.level === 0 ? 'Cant.' : 'Lv ' + sp.level}</span>
+            <span style="font-family:var(--font-ui);font-size:0.7rem;color:var(--gold-text);width:38px;flex-shrink:0">${sp.level === 0 ? 'Cant.' : 'Lv ' + sp.level}</span>
             <span style="font-size:0.88rem;cursor:pointer" onclick="showSheetSpellDetail('${sp.id}')" title="Click for details">${sp.name}</span>
             <span style="font-size:0.72rem;color:var(--text-muted);font-style:italic;margin-left:auto;margin-right:0.5rem">${sp.school}</span>
-            <button onclick="confirmAddSpell('${charId}','${sp.id}')" style="background:none;border:1px solid var(--gold);color:var(--gold);border-radius:2px;padding:0.15rem 0.5rem;font-family:'Cinzel',serif;font-size:0.7rem;cursor:pointer;flex-shrink:0">Add</button>
+            <button onclick="confirmAddSpell('${charId}','${sp.id}')" style="background:none;border:1px solid var(--gold);color:var(--gold-text);border-radius:2px;padding:0.15rem 0.5rem;font-family:var(--font-ui);font-size:0.7rem;cursor:pointer;flex-shrink:0">Add</button>
           </div>`).join('') : '<div style="font-size:0.85rem;color:var(--text-muted);font-style:italic;padding:0.5rem">No more spells available at your level.</div>'}
       </div>
     </div>`;
@@ -624,16 +624,16 @@ function showSheetSpellDetail(id, charId) {
     <div style="background:var(--parchment);border:2px solid var(--gold);border-radius:2px;max-width:520px;width:100%;padding:1.5rem;box-shadow:0 24px 64px rgba(0,0,0,0.5);max-height:90vh;overflow-y:auto">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem">
         <div>
-          <div style="font-family:'Cinzel Decorative',serif;font-size:1.2rem;color:var(--text-main)">${sp.name}</div>
-          <div style="font-family:'Cinzel',serif;font-size:0.75rem;color:var(--gold);margin-top:0.2rem">${lvlLabel} · ${sp.school}</div>
+          <div style="font-family:var(--font-display);font-size:1.2rem;color:var(--text-main)">${sp.name}</div>
+          <div style="font-family:var(--font-ui);font-size:0.75rem;color:var(--gold-text);margin-top:0.2rem">${lvlLabel} · ${sp.school}</div>
         </div>
         <button onclick="document.getElementById('sheet-spell-modal').remove()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--text-muted);padding:0 0.25rem;line-height:1">✕</button>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem 1rem;margin-bottom:1rem;padding:0.75rem;background:var(--parchment-dark);border-radius:2px;border:1px solid var(--border)">
-        <div><span style="font-family:'Cinzel',serif;font-size:0.7rem;color:var(--text-muted);text-transform:uppercase">Casting Time</span><div style="font-size:0.9rem">${sp.cast||'—'}</div></div>
-        <div><span style="font-family:'Cinzel',serif;font-size:0.7rem;color:var(--text-muted);text-transform:uppercase">Range</span><div style="font-size:0.9rem">${sp.range||'—'}</div></div>
-        <div><span style="font-family:'Cinzel',serif;font-size:0.7rem;color:var(--text-muted);text-transform:uppercase">Duration</span><div style="font-size:0.9rem">${sp.duration||'—'}</div></div>
-        ${sp.components ? `<div><span style="font-family:'Cinzel',serif;font-size:0.7rem;color:var(--text-muted);text-transform:uppercase">Components</span><div style="font-size:0.9rem">${sp.components}</div></div>` : ''}
+        <div><span style="font-family:var(--font-ui);font-size:0.7rem;color:var(--text-muted);text-transform:uppercase">Casting Time</span><div style="font-size:0.9rem">${sp.cast||'—'}</div></div>
+        <div><span style="font-family:var(--font-ui);font-size:0.7rem;color:var(--text-muted);text-transform:uppercase">Range</span><div style="font-size:0.9rem">${sp.range||'—'}</div></div>
+        <div><span style="font-family:var(--font-ui);font-size:0.7rem;color:var(--text-muted);text-transform:uppercase">Duration</span><div style="font-size:0.9rem">${sp.duration||'—'}</div></div>
+        ${sp.components ? `<div><span style="font-family:var(--font-ui);font-size:0.7rem;color:var(--text-muted);text-transform:uppercase">Components</span><div style="font-size:0.9rem">${sp.components}</div></div>` : ''}
       </div>
       <p style="font-style:italic;color:var(--text-muted);font-size:0.9rem;margin-bottom:0.75rem;line-height:1.5">${sp.desc||''}</p>
       <p style="font-size:0.95rem;line-height:1.7;color:var(--text-main)">${sp.detail||''}</p>

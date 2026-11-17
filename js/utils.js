@@ -12,3 +12,10 @@ function _flushPending() {
 }
 window.addEventListener('beforeunload', _flushPending);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') _flushPending(); });
+
+// Light or dark theme, remembered on this device only
+function toggleTheme() {
+  const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  localStorage.setItem('chronicler_theme', next);
+}

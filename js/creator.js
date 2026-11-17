@@ -139,14 +139,14 @@ function renderCreatorStep() {
           const mod = Math.floor((val - 10) / 2);
           return `<div class="stat-box">
             <div class="stat-name">${labels[s]}</div>
-            <input type="number" id="stat-${s}" min="1" max="30" value="${val}" oninput="updateStatMod('${s}');updateHpPreview()" style="width:100%;text-align:center;background:transparent;border:none;outline:none;font-family:'Cinzel Decorative',serif;font-size:1.8rem;color:var(--text-main)">
+            <input type="number" id="stat-${s}" min="1" max="30" value="${val}" oninput="updateStatMod('${s}');updateHpPreview()" style="width:100%;text-align:center;background:transparent;border:none;outline:none;font-family:var(--font-ui);font-weight:600;font-variant-numeric:lining-nums;font-size:1.8rem;color:var(--text-main)">
             <div class="stat-mod" id="mod-${s}">${mod >= 0 ? '+' : ''}${mod}</div>
-            ${rb[s] ? `<div style="font-size:0.7rem;color:var(--green-health);font-family:'Cinzel',serif">+${rb[s]} race → ${val + rb[s]}</div>` : ''}
+            ${rb[s] ? `<div style="font-size:0.7rem;color:var(--green-health);font-family:var(--font-ui)">+${rb[s]} race → ${val + rb[s]}</div>` : ''}
           </div>`;
         }).join('')}</div>
-        <div id="hp-preview" style="margin-top:1.5rem;background:var(--parchment-dark);border:1px solid var(--parchment-deeper);border-left:4px solid var(--gold);border-radius:2px;padding:1rem;font-family:'Cinzel',serif;font-size:0.85rem">
+        <div id="hp-preview" style="margin-top:1.5rem;background:var(--parchment-dark);border:1px solid var(--parchment-deeper);border-left:4px solid var(--gold);border-radius:2px;padding:1rem;font-family:var(--font-ui);font-size:0.85rem">
           <span style="color:var(--text-muted);text-transform:uppercase;letter-spacing:0.1em">Calculated Max HP: </span>
-          <span id="hp-preview-val" style="color:var(--blood);font-size:1.2rem;font-family:'Cinzel Decorative',serif">${previewHp}</span>
+          <span id="hp-preview-val" style="color:var(--blood);font-size:1.2rem;font-family:var(--font-ui);font-weight:600;font-variant-numeric:lining-nums">${previewHp}</span>
           <span style="color:var(--text-muted);font-size:0.75rem;margin-left:0.5rem">(${clsObj4 ? `Hit Die: d${clsObj4.hd}, Max HP at 1st level + avg per level after` : '—'})</span>
         </div>`;
       break;
@@ -176,7 +176,7 @@ function renderCreatorStep() {
         <div>
           <div class="sidebar-title" style="margin-bottom:0.4rem">Weapons</div>
           <div style="font-size:0.8rem;color:var(--text-muted);font-style:italic;margin-bottom:0.75rem">${cls?.name||'Your class'} is proficient with: <strong style="color:var(--text-main)">${cls?.weaponProf==='all'?'all weapons':cls?.weaponProf?.replace(/,/g,', ')||'—'}</strong>. Non-proficient weapons shown below with ⚠.</div>
-          <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.4rem">Selected: <strong id="weapon-count" style="color:var(--gold)">${d.weapons.length}</strong> / ${cls?.weaponLimit||4}</div>
+          <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.4rem">Selected: <strong id="weapon-count" style="color:var(--gold-text)">${d.weapons.length}</strong> / ${cls?.weaponLimit||4}</div>
           <div class="filter-bar" id="weapon-filter-bar">
             <button class="filter-btn active" onclick="filterWeapons('all',this)">All</button>
             <button class="filter-btn" onclick="filterWeapons('prof',this)">Proficient Only</button>
@@ -199,7 +199,7 @@ function renderCreatorStep() {
           <div class="sidebar-title" style="margin-bottom:0.4rem">Spells ${!isSpellcaster?'<span style="font-size:0.7rem;color:var(--text-muted)">(not a spellcaster)</span>':''}</div>
           ${isSpellcaster && spellLimits ? `
           <div style="background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:0.6rem 0.75rem;margin-bottom:0.75rem;font-size:0.8rem">
-            <div style="font-family:'Cinzel',serif;font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.3rem">Selection Limits · Level ${d.level} ${cls.name} · Spell slots up to level <strong>${maxSpellLevel || 'none yet'}</strong></div>
+            <div style="font-family:var(--font-ui);font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.3rem">Selection Limits · Level ${d.level} ${cls.name} · Spell slots up to level <strong>${maxSpellLevel || 'none yet'}</strong></div>
             <div style="display:flex;gap:1rem;flex-wrap:wrap">
               <span>Cantrips: <strong id="cantrip-count" style="color:${selCantrips>spellLimits.cantrips?'var(--blood)':'var(--green-health)'}">${selCantrips}</strong> / ${spellLimits.cantrips}</span>
               <span>${spellLimits.isPrepared ? 'Prepared' : 'Known'} spells: <strong id="known-count" style="color:${selLeveled>spellLimits.totalKnown?'var(--blood)':'var(--green-health)'}">${selLeveled}</strong> / ${spellLimits.totalKnown}</span>
@@ -217,7 +217,7 @@ function renderCreatorStep() {
                   <span class="spell-name">${sp.name}</span>
                   <span class="spell-level">${sp.level===0?'C':sp.level}</span>
                   <span class="spell-school" style="font-size:0.7rem">${sp.school}</span>
-                  <button onclick="event.stopPropagation();showSpellDetail('${sp.id}')" style="margin-left:auto;background:none;border:1px solid var(--border);border-radius:2px;padding:0.1rem 0.35rem;font-size:0.65rem;cursor:pointer;color:var(--text-muted);font-family:'Cinzel',serif;flex-shrink:0" title="View full spell details">?</button>
+                  <button onclick="event.stopPropagation();showSpellDetail('${sp.id}')" style="margin-left:auto;background:none;border:1px solid var(--border);border-radius:2px;padding:0.1rem 0.35rem;font-size:0.72rem;cursor:pointer;color:var(--text-muted);font-family:var(--font-ui);flex-shrink:0" title="View full spell details">?</button>
                 </div>
                 <div style="font-size:0.75rem;color:var(--text-muted);font-style:italic;line-height:1.3;margin-top:0.1rem">${sp.desc||''}</div>
               </div>
@@ -242,7 +242,7 @@ function renderCreatorStep() {
       <div class="form-full"><label class="form-label">Notes / Equipment</label>
         <textarea class="parchment-input" id="f-notes" rows="3" placeholder="Gear, personality traits, bonds...">${esc(d.notes)}</textarea></div>
       <div style="background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:1rem;margin-top:1rem">
-        <div style="font-family:'Cinzel',serif;font-size:0.8rem;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.75rem;text-transform:uppercase">Summary</div>
+        <div style="font-family:var(--font-ui);font-size:0.8rem;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.75rem;text-transform:uppercase">Summary</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;font-size:0.9rem">
           <div><strong>Name:</strong> ${esc(d.name) || '—'}</div>
           <div><strong>Player:</strong> ${esc(d.player) || '—'}</div>
@@ -307,10 +307,10 @@ function showSpellDetail(id) {
   document.getElementById('spell-detail-content').innerHTML = `
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.5rem;margin-bottom:1rem">
       <div>
-        <div style="font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;color:var(--text-main)">${sp.name}</div>
+        <div style="font-family:var(--font-heading);font-size:1.1rem;font-weight:700;color:var(--text-main)">${sp.name}</div>
         <div style="font-size:0.85rem;color:var(--text-muted);font-style:italic;margin-top:0.15rem">${sp.level===0?'Cantrip':'Level '+sp.level} ${sp.school}</div>
       </div>
-      <div style="background:var(--parchment-dark);border:1px solid var(--parchment-deeper);border-radius:2px;padding:0.3rem 0.6rem;font-family:'Cinzel',serif;font-size:0.75rem;white-space:nowrap;color:var(--text-muted)">${sp.level===0?'Cantrip':'Lv '+sp.level}</div>
+      <div style="background:var(--parchment-dark);border:1px solid var(--parchment-deeper);border-radius:2px;padding:0.3rem 0.6rem;font-family:var(--font-ui);font-size:0.75rem;white-space:nowrap;color:var(--text-muted)">${sp.level===0?'Cantrip':'Lv '+sp.level}</div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;font-size:0.82rem;margin-bottom:1rem;background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:0.6rem">
       <div><strong>Cast:</strong> ${sp.cast||'—'}</div>
@@ -397,7 +397,7 @@ function showLimitWarning(msg) {
   if (!w) {
     w = document.createElement('div');
     w.id = 'limit-warning';
-    w.style.cssText = 'position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);background:var(--blood);color:var(--parchment);font-family:Cinzel,serif;font-size:0.85rem;padding:0.7rem 1.5rem;border-radius:2px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.4);pointer-events:none;transition:opacity 0.3s';
+    w.style.cssText = 'position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);background:#8b1a1a;color:#f4ead5;font-family:var(--font-ui);font-size:0.95rem;padding:0.7rem 1.5rem;border-radius:2px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.4);pointer-events:none;transition:opacity 0.3s';
     document.body.appendChild(w);
   }
   w.textContent = msg;

@@ -82,6 +82,6 @@ function importData(evt) {
 
 function clearAll() {
   if (!confirm('Clear the copy stored on this device and log out? Campaign data in the cloud is not affected.')) return;
-  Object.keys(localStorage).filter(k => k.startsWith('chronicler_')).forEach(k => localStorage.removeItem(k));
+  Object.keys(localStorage).filter(k => k.startsWith('chronicler_') && k !== 'chronicler_theme').forEach(k => localStorage.removeItem(k));
   location.reload();
 }
