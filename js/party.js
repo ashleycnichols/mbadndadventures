@@ -1,0 +1,140 @@
+// ============================================================
+// DM PARTY VIEW
+// ============================================================
+function renderPartyPanel() {
+  state.dmPartyCharId = null;
+  const container = document.getElementById('party-content');
+  if (!container) return;
+  if (!state.characters.length) {
+    container.innerHTML = '<div class="empty-state"><p>No characters in the party yet.</p></div>';
+    return;
+  }
+
+  let html = '<div style="max-width:1000px;margin:0 auto;padding:1rem">';
+  html += `<div style="font-family:'Cinzel Decorative',serif;font-size:1.1rem;color:var(--gold);margin-bottom:1rem">Party Overview</div>`;
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem">';
+
+  state.characters.forEach(ch => {
+    if (!ch.usedSlots) ch.usedSlots = {};
+    if (!ch.conditions) ch.conditions = [];
+    if (!ch.exhaustion) ch.exhaustion = 0;
+
+    const cls = CLASSES.find(cl => cl.id === ch.class);
+    const race = RACES.find(r => r.id === ch.race);
+    const profBonus = Math.ceil(ch.level / 4) + 1;
+    const getMod = s => Math.floor(((ch.stats[s]||10) - 10) / 2);
+    const hpPct = Math.max(0, Math.round(ch.currentHp / ch.maxHp * 100));
+    const hpColor = hpPct > 60 ? 'var(--green-health)' : hpPct > 25 ? '#8b6914' : 'var(--blood)';
+    const initMod = getMod('dex');
+    const passivePerc = 10 + getMod('wis');
+    const spellMod = cls?.statHp ? getMod(cls.statHp) : 0;
+    const spellDC = 8 + profBonus + spellMod;
+    const chAC = (() => {
+      const dex = getMod('dex'), con = getMod('con'), wis = getMod('wis'), cid = ch.class;
+      if (cid === 'barbarian') return 10 + dex + con;
+      if (cid === 'monk')      return 10 + dex + wis;
+      if (cid === 'fighter' || cid === 'paladin') return 16;
+      if (cid === 'cleric' || cid === 'ranger')   return 14 + Math.min(dex, 2);
+      if (['bard','rogue','warlock','artificer','druid'].includes(cid)) return 11 + dex;
+      return 10 + dex;
+    })();
+
+    // Spell slots summary
+    const lvlIdx = Math.min(ch.level - 1, 19);
+    const slotCounts = cls?.spellSlots?.[lvlIdx] || [];
+    let slotSummary = '';
+    if (slotCounts.length) {
+      slotSummary = slotCounts.map((total, i) => {
+        if (!total) return '';
+        const used = (ch.usedSlots[i+1] || 0);
+        const avail = total - used;
+        return `<span style="font-size:0.72rem;color:${avail>0?'var(--gold)':'var(--text-muted)'}">L${i+1}:${avail}/${total}</span>`;
+      }).filter(Boolean).join(' ');
+    }
+
+    const conditionBadges = ch.conditions.length
+      ? ch.conditions.map(cond => `<span style="font-size:0.68rem;background:rgba(139,26,26,0.15);border:1px solid var(--blood);color:var(--blood);padding:0.1rem 0.35rem;border-radius:2px">${cond}</span>`).join('')
+      : '';
+
+    html += `<div onclick="openDMSheet('${ch.id}')" style="background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:1rem;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:0.5rem">
+        <div>
+          <div style="font-family:'Cinzel',serif;font-size:1rem;color:var(--text-main);font-weight:600">${esc(ch.name)}</div>
+          <div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.1rem">${race?.name||''} ${cls?.name||''} · Lvl ${ch.level}${ch.player ? ' · '+esc(ch.player) : ''}</div>
+        </div>
+        ${ch.inspiration ? '<span title="Inspiration" style="font-size:1.2rem">⭐</span>' : ''}
+      </div>
+      <!-- HP bar -->
+      <div style="height:6px;background:var(--parchment);border-radius:3px;margin-bottom:0.3rem;overflow:hidden">
+        <div style="height:100%;width:${hpPct}%;background:${hpColor};transition:width 0.3s"></div>
+      </div>
+      <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.6rem">HP: <strong style="color:${hpColor}">${ch.currentHp}</strong> / ${ch.maxHp}${ch.tempHp>0 ? ' <span style="color:#4a7fb5">+'+ch.tempHp+' temp</span>' : ''}</div>
+      <!-- Quick stats -->
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.5rem">
+        ${[['AC',chAC],['Init',(initMod>=0?'+':'')+initMod],['Perc.',passivePerc],['Prof.','+'+profBonus],cls?.spellcaster?['DC',spellDC]:null].filter(Boolean).map(([l,v])=>`<div style="text-align:center;background:var(--parchment);border:1px solid var(--border);border-radius:2px;padding:0.2rem 0.4rem;min-width:36px"><div style="font-size:0.85rem;font-family:'Cinzel',serif;color:var(--gold)">${v}</div><div style="font-size:0.6rem;color:var(--text-muted)">${l}</div></div>`).join('')}
+      </div>
+      ${slotSummary ? `<div style="display:flex;gap:0.3rem;flex-wrap:wrap;margin-bottom:0.4rem">${slotSummary}</div>` : ''}
+      ${conditionBadges ? `<div style="display:flex;gap:0.25rem;flex-wrap:wrap">${conditionBadges}</div>` : ''}
+      <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.5rem;font-style:italic">Click to view full sheet →</div>
+    </div>`;
+  });
+
+  html += '</div></div>';
+  container.innerHTML = html;
+}
+
+function openDMSheet(charId) {
+  state.dmPartyCharId = charId;
+  renderDMSheet(charId);
+}
+
+function renderDMSheet(charId) {
+  const c = state.characters.find(ch => ch.id === charId);
+  const container = document.getElementById('party-content');
+  if (!c || !container) return;
+
+  // Ensure default fields
+  if (!c.usedSlots) c.usedSlots = {};
+  if (!c.tempHp) c.tempHp = 0;
+  if (!c.deathSaves) c.deathSaves = {success:0, fail:0};
+  if (!c.hitDiceUsed) c.hitDiceUsed = 0;
+  if (!Array.isArray(c.spells)) c.spells = [];
+  if (!Array.isArray(c.weapons)) c.weapons = [];
+  if (!c.stats) c.stats = {str:10,dex:10,con:10,int:10,wis:10,cha:10};
+  if (c.inventory === undefined) c.inventory = STARTING_EQUIPMENT[c.class] || 'Explorer pack, 10gp';
+  if (!c.conditions) c.conditions = [];
+  if (!c.exhaustion) c.exhaustion = 0;
+
+  const backBtn = `<div style="max-width:900px;margin:0 auto;padding:1rem 1rem 0">
+    <button class="btn-secondary btn-sm" onclick="backToPartyOverview()" style="margin-bottom:0.75rem">← Back to Party</button>
+  </div>`;
+
+  // Temporarily swap sheet-content div into party-content, render, extract
+  const orig = document.getElementById('sheet-content');
+  orig.id = '_sheet_hidden';
+  const tmp = document.createElement('div');
+  tmp.id = 'sheet-content';
+  document.body.appendChild(tmp);
+
+  // Override to render this char specifically
+  const savedUser = state.currentUser;
+  // Temporarily make DM "own" this character for sheet rendering
+  const savedChars = state.characters;
+  state.characters = [c];
+  state.currentUser = { name: c.player || 'Dungeon Master', isDM: false };
+  renderMySheet();
+  const sheetHtml = tmp.innerHTML;
+  state.characters = savedChars;
+  state.currentUser = savedUser;
+
+  tmp.remove();
+  orig.id = 'sheet-content';
+
+  container.innerHTML = backBtn + sheetHtml;
+}
+
+function backToPartyOverview() {
+  state.dmPartyCharId = null;
+  renderPartyPanel();
+}
+
