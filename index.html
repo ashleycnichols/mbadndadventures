@@ -6,8 +6,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>The Chronicler — DnD Campaign Platform</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
-<script type="module" src="js/firebase.js?v=20261117-3"></script>
-<link rel="stylesheet" href="css/styles.css?v=20261117-3">
+<script type="module" src="js/firebase.js?v=20261117-4"></script>
+<link rel="stylesheet" href="css/styles.css?v=20261117-4">
 <script>
   // Apply this device's theme before the page draws (light unless dark was chosen)
   document.documentElement.dataset.theme = localStorage.getItem('chronicler_theme') || 'light';
@@ -92,7 +92,7 @@
     <!-- MAP PANEL -->
     <div class="panel" id="panel-map">
       <!-- MAP TABS (DM only, injected by renderMapTabs) -->
-      <div id="map-tabs-bar" style="display:none;background:var(--parchment-dark);border-bottom:1px solid var(--border);padding:0.4rem 0.75rem;display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap"></div>
+      <div id="map-tabs-bar" style="display:none;background:var(--parchment-dark);border-bottom:1px solid var(--border);padding:0.3rem 0.6rem;margin-bottom:0.5rem;display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap"></div>
       <div class="map-container">
         <div class="map-viewport" id="map-viewport">
           <canvas id="map-canvas"></canvas>
@@ -201,7 +201,7 @@
             </div>
           </div>
 
-          <div class="sidebar-section">
+          <div class="sidebar-section" id="token-list-section">
             <div class="sidebar-title">Tokens</div>
             <div class="token-list" id="token-list"></div>
           </div>
@@ -299,20 +299,20 @@
   </div>
 </div>
 
-<script src="js/data.js?v=20261117-3"></script>
-<script src="js/state.js?v=20261117-3"></script>
-<script src="js/persistence.js?v=20261117-3"></script>
-<script src="js/campaigns.js?v=20261117-3"></script>
-<script src="js/login.js?v=20261117-3"></script>
-<script src="js/navigation.js?v=20261117-3"></script>
-<script src="js/party.js?v=20261117-3"></script>
-<script src="js/combat.js?v=20261117-3"></script>
-<script src="js/characters.js?v=20261117-3"></script>
-<script src="js/creator.js?v=20261117-3"></script>
-<script src="js/sheet.js?v=20261117-3"></script>
-<script src="js/levelup.js?v=20261117-3"></script>
-<script src="js/map.js?v=20261117-3"></script>
-<script src="js/settings.js?v=20261117-3"></script>
-<script src="js/utils.js?v=20261117-3"></script>
+<script src="js/data.js?v=20261117-4"></script>
+<script src="js/state.js?v=20261117-4"></script>
+<script src="js/persistence.js?v=20261117-4"></script>
+<script src="js/campaigns.js?v=20261117-4"></script>
+<script src="js/login.js?v=20261117-4"></script>
+<script src="js/navigation.js?v=20261117-4"></script>
+<script src="js/party.js?v=20261117-4"></script>
+<script src="js/combat.js?v=20261117-4"></script>
+<script src="js/characters.js?v=20261117-4"></script>
+<script src="js/creator.js?v=20261117-4"></script>
+<script src="js/sheet.js?v=20261117-4"></script>
+<script src="js/levelup.js?v=20261117-4"></script>
+<script src="js/map.js?v=20261117-4"></script>
+<script src="js/settings.js?v=20261117-4"></script>
+<script src="js/utils.js?v=20261117-4"></script>
 </body>
 </html>

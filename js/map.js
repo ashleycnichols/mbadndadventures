@@ -282,11 +282,43 @@ function updateZoomLabel() {
   const el = document.getElementById('map-zoom-label');
   if (el) el.textContent = Math.round(mapView.zoom * 100) + '%';
 }
+// Size the map area to fill the window exactly, so the page itself never scrolls
+function fitMapLayout() {
+  const panel = document.getElementById('panel-map');
+  const box = panel?.querySelector('.map-container');
+  if (!box) return;
+  if (!panel.classList.contains('active') || window.innerWidth <= 700) { box.style.height = ''; return; }
+  const top = box.getBoundingClientRect().top + window.scrollY;
+  const main = document.querySelector('.main-content');
+  const below = main ? parseFloat(getComputedStyle(main).paddingBottom) || 0 : 0;
+  box.style.height = Math.max(360, Math.floor(window.innerHeight - top - below - 2)) + 'px';
+}
+window.addEventListener('resize', fitMapLayout);
+
+// Side panel sections fold up when you click their heading; remembered per device
+function setupSidebarFolding() {
+  const saved = JSON.parse(localStorage.getItem('chronicler_folded') || '{}');
+  document.querySelectorAll('.map-sidebar .sidebar-section[id]').forEach(sec => {
+    if (saved[sec.id]) sec.classList.add('collapsed');
+    const title = sec.querySelector(':scope > .sidebar-title');
+    if (!title || title._fold) return;
+    title._fold = true;
+    title.title = 'Click to fold or unfold';
+    title.addEventListener('click', () => {
+      sec.classList.toggle('collapsed');
+      const now = JSON.parse(localStorage.getItem('chronicler_folded') || '{}');
+      now[sec.id] = sec.classList.contains('collapsed');
+      localStorage.setItem('chronicler_folded', JSON.stringify(now));
+    });
+  });
+}
+
 function toggleWideMap() {
   const box = document.querySelector('.map-container');
   if (!box) return;
   box.classList.toggle('map-wide');
   localStorage.setItem('chronicler_map_wide', box.classList.contains('map-wide') ? '1' : '');
+  fitMapLayout();
 }
 
 // ============================================================
@@ -358,6 +390,7 @@ function initMap() {
   renderTokenList();
   renderTokenLibrary();
   renderQuickTokens();
+  setupSidebarFolding();
   if (!state.currentUser?.isDM) renderCombatSidebar();
 
   canvas.addEventListener('mousedown', onMapMouseDown);
@@ -426,6 +459,7 @@ function renderMapTabs() {
   });
   html += `<button onclick="addNewMap()" style="background:none;border:1px dashed var(--border);border-radius:2px;cursor:pointer;padding:0.3rem 0.6rem;font-family:var(--font-ui);font-size:0.9rem;color:var(--text-muted)" title="Add a new map">+ New Map</button>`;
   bar.innerHTML = html;
+  fitMapLayout(); // the tab row can wrap and change height
 
   // Actions for the open map
   const m = viewedMap();

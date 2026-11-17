@@ -502,10 +502,30 @@
   /* ---- MAP PANEL ---- */
   .map-container {
     display: grid;
-    grid-template-columns: 1fr 280px;
-    gap: 1.5rem;
-    height: calc(100vh - 140px);
+    grid-template-columns: 1fr 300px;
+    gap: 1rem;
+    height: calc(100vh - 140px); /* replaced by fitMapLayout() to match the window exactly */
   }
+
+  /* Map page: denser side panel so it fits a desktop screen */
+  .map-sidebar { font-size: 0.88rem; padding: 0.9rem 1rem; }
+  .map-sidebar .sidebar-section { margin-bottom: 1rem; }
+  .map-sidebar .sidebar-title { cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none; margin-bottom: 0.6rem; }
+  .map-sidebar .sidebar-title::after { content: '▾'; font-size: 0.8rem; color: var(--text-muted); }
+  .map-sidebar .sidebar-section.collapsed .sidebar-title { margin-bottom: 0; }
+  .map-sidebar .sidebar-section.collapsed .sidebar-title::after { content: '▸'; }
+  .map-sidebar .sidebar-section.collapsed > :not(.sidebar-title) { display: none !important; }
+  .map-sidebar .map-controls { gap: 0.4rem; }
+  .map-sidebar .upload-zone { padding: 0.45rem; margin-bottom: 0.2rem; font-size: 0.85rem; }
+  .map-sidebar .control-btn { padding: 0.35rem 0.6rem; font-size: 0.85rem; }
+  .map-sidebar .parchment-input { padding: 0.3rem 0.5rem; font-size: 0.9rem; }
+  .map-sidebar .form-label { font-size: 0.7rem; margin-bottom: 0.15rem; }
+  .map-sidebar .grid-control { margin-bottom: 0.2rem; font-size: 0.85rem; }
+  .map-sidebar .quick-chip { padding: 0.2rem 0.45rem; font-size: 0.85rem; }
+  .map-sidebar .qty-btn { width: 1.6rem; height: 1.6rem; font-size: 0.9rem; }
+  .map-sidebar .qty-input { width: 2.8rem; padding: 0.15rem; font-size: 0.9rem; }
+  .map-sidebar .token-item { padding: 0.3rem 0.4rem; }
+  .map-sidebar .input-group { margin: 0.35rem 0 !important; }
 
   .map-container.map-wide { grid-template-columns: 1fr; }
   .map-container.map-wide .map-sidebar { display: none; }

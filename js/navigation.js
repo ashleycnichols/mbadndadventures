@@ -11,7 +11,7 @@ function showPanel(id, callerEl) {
     ? callerEl
     : document.querySelector(`.nav-tab[onclick*="'${id}'"]`);
   if (navEl) navEl.classList.add('active');
-  if (id === 'map') { setTimeout(redrawMap, 50); if (!state.currentUser?.isDM) renderCombatSidebar(); }
+  if (id === 'map') { fitMapLayout(); setTimeout(redrawMap, 50); if (!state.currentUser?.isDM) renderCombatSidebar(); }
   if (id === 'sheet') { renderMySheet(); }
   if (id === 'quick') { renderQuickView(); }
   if (id === 'combat') { renderCombatView(); }
