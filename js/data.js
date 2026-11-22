@@ -5,6 +5,7 @@
 const RACES = [
   { id:'human', speed:30, name:'Human', icon:'👤', desc:'Versatile, +1 all stats', stats:{str:1,dex:1,con:1,int:1,wis:1,cha:1} },
   { id:'elf', speed:30, name:'Elf', icon:'🧝', desc:'Darkvision, Trance, +2 DEX', stats:{dex:2} },
+  { id:'drow', speed:30, name:'Drow (Dark Elf)', icon:'🕷️', desc:'Superior Darkvision, Drow Magic, +2 DEX, +1 CHA', stats:{dex:2,cha:1} },
   { id:'dwarf', speed:25, name:'Dwarf', icon:'⛏', desc:'Darkvision, Resilience, +2 CON', stats:{con:2} },
   { id:'halfling', speed:25, name:'Halfling', icon:'🌿', desc:'Lucky, Brave, +2 DEX', stats:{dex:2} },
   { id:'gnome', speed:25, name:'Gnome', icon:'🔬', desc:'Gnome Cunning, +2 INT', stats:{int:2} },
@@ -145,8 +146,20 @@ RACE_TRAITS.aarakocra = [
 ];
 
 // Racial effects the sheet applies automatically
-const RACE_SKILLS = { elf: ['Perception'], 'half-orc': ['Intimidation'], tabaxi: ['Perception', 'Stealth'], tortle: ['Survival'] };
-const RACE_WEAPONS = { dwarf: ['battleaxe', 'handaxe', 'light-hammer', 'warhammer'] };
+RACE_TRAITS.drow = [
+  { name: 'Ability Score Increase', text: '+2 Dexterity (elf), +1 Charisma (drow).', auto: 'ability scores' },
+  { name: 'Speed', text: '30 ft.', auto: 'speed' },
+  { name: 'Superior Darkvision', text: 'See in dim light within 120 ft as if bright, and in darkness as if dim (no colour).' },
+  { name: 'Keen Senses', text: 'Proficiency in Perception.', auto: 'skills' },
+  { name: 'Fey Ancestry', text: 'Advantage on saves against being charmed; magic can\'t put you to sleep.' },
+  { name: 'Trance', text: 'Meditate for 4 hours instead of sleeping 8 to get the benefit of a long rest.' },
+  { name: 'Sunlight Sensitivity', text: 'Disadvantage on attack rolls and sight-based Perception checks when you, the target or what you\'re looking at is in direct sunlight.' },
+  { name: 'Drow Magic', text: 'Dancing Lights cantrip. At level 3, Faerie Fire once per long rest; at level 5, Darkness once per long rest. Charisma is the casting ability.' },
+  { name: 'Drow Weapon Training', text: 'Proficient with rapiers, shortswords and hand crossbows.', auto: 'weapon attacks' },
+];
+
+const RACE_SKILLS = { elf: ['Perception'], drow: ['Perception'], 'half-orc': ['Intimidation'], tabaxi: ['Perception', 'Stealth'], tortle: ['Survival'] };
+const RACE_WEAPONS = { dwarf: ['battleaxe', 'handaxe', 'light-hammer', 'warhammer'], drow: ['rapier', 'shortsword', 'hand-crossbow'] };
 const RACE_AC_BONUS = { warforged: 1 };
 
 const CLASSES = [
