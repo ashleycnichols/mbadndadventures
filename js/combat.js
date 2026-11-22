@@ -88,7 +88,7 @@ function renderCombatView() {
         </div>
       </td>
       <td style="${td};font-family:var(--font-heading);font-size:1.05rem;color:var(--gold-text);text-align:center">${calcAC(c)}</td>
-      <td style="${td};text-align:center">${fmtMod(abilityMod(c, 'dex'))}</td>
+      <td style="${td};text-align:center">${fmtMod(initiativeBonus(c))}</td>
       <td style="${td};text-align:center">${passivePerception(c)}</td>
       <td style="${td};text-align:center">${cls?.spellcaster ? 8 + proficiencyBonus(c) + spellcastingMod(c) : '—'}</td>
       <td style="${td};min-width:150px">

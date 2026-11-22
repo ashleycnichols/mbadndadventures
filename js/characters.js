@@ -97,7 +97,10 @@ function calcAC(ch) {
   if (!ch?.stats) return 10;
   if (Number.isFinite(+ch.acOverride) && ch.acOverride !== '' && ch.acOverride !== null) return +ch.acOverride;
   if (ch.race === 'tortle') return 17; // Natural Armor replaces worn armour
-  return classDefaultAC(ch) + (RACE_AC_BONUS[ch.race] || 0);
+  const classAC = classDefaultAC(ch) + (RACE_AC_BONUS[ch.race] || 0);
+  // Natural armour (Lizardfolk): base + DEX, if better than the class guess
+  if (RACE_NATURAL_AC[ch.race]) return Math.max(classAC, RACE_NATURAL_AC[ch.race] + abilityMod(ch, 'dex'));
+  return classAC;
 }
 function editAC(id) {
   const c = state.characters.find(x => x.id === id);
@@ -112,7 +115,11 @@ function editAC(id) {
 function raceSpeed(ch) { return RACES.find(r => r.id === ch?.race)?.speed || 30; }
 function raceSpeedText(ch) {
   const r = RACES.find(x => x.id === ch?.race);
-  return (r?.speed || 30) + ' ft' + (r?.fly ? `, fly ${r.fly}` : '');
+  return (r?.speed || 30) + ' ft' + (r?.fly ? `, fly ${r.fly}` : '') + (r?.swim ? `, swim ${r.swim}` : '');
+}
+// Initiative: DEX modifier, plus proficiency for some races (Harengon: Hare-Trigger)
+function initiativeBonus(ch) {
+  return abilityMod(ch, 'dex') + (RACE_INIT_PROF.includes(ch?.race) ? proficiencyBonus(ch) : 0);
 }
 
 function isSaveProficient(ch, ab) { return (CLASSES.find(c => c.id === ch?.class)?.saves || []).includes(ab); }

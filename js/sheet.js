@@ -89,7 +89,7 @@ function renderSheet(c) {
   const spellMod = cls?.statHp ? getMod(cls.statHp) : 0;
   const spellDC = 8 + profBonus + spellMod;
   const spellAtk = profBonus + spellMod;
-  const initMod = getMod('dex');
+  const initMod = initiativeBonus(c);
   const passivePerc = passivePerception(c);
 
   const ac = calcAC(c);

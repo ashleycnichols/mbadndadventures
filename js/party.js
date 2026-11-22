@@ -23,7 +23,7 @@ function renderPartyPanel() {
     const getMod = s => Math.floor(((ch.stats[s]||10) - 10) / 2);
     const hpPct = Math.max(0, Math.round(ch.currentHp / ch.maxHp * 100));
     const hpColor = hpPct > 60 ? 'var(--green-health)' : hpPct > 25 ? 'var(--amber)' : 'var(--blood)';
-    const initMod = getMod('dex');
+    const initMod = initiativeBonus(ch);
     const passivePerc = passivePerception(ch);
     const spellMod = spellcastingMod(ch);
     const spellDC = 8 + profBonus + spellMod;

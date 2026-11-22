@@ -12,7 +12,7 @@ function openLevelUp(id) {
 
   const cls = CLASSES.find(cl => cl.id === c.class);
   const newLevel = c.level + 1;
-  const newHpRoll = Math.floor((cls?.hd||8) / 2) + 1 + Math.floor(((c.stats.con||10)-10)/2);
+  const newHpRoll = Math.floor((cls?.hd||8) / 2) + 1 + Math.floor(((c.stats.con||10)-10)/2) + (RACE_HP_PER_LEVEL[c.race] || 0);
   const newProfBonus = Math.ceil(newLevel / 4) + 1;
 
   // What changes at this level?

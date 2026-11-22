@@ -4,17 +4,48 @@
 
 const RACES = [
   { id:'human', speed:30, name:'Human', icon:'👤', desc:'Versatile, +1 all stats', stats:{str:1,dex:1,con:1,int:1,wis:1,cha:1} },
-  { id:'elf', speed:30, name:'Elf', icon:'🧝', desc:'Darkvision, Trance, +2 DEX', stats:{dex:2} },
+  { id:'elf', legacy:true, speed:30, name:'Elf', icon:'🧝', desc:'Darkvision, Trance, +2 DEX', stats:{dex:2} },
   { id:'drow', speed:30, name:'Drow (Dark Elf)', icon:'🕷️', desc:'Superior Darkvision, Drow Magic, +2 DEX, +1 CHA', stats:{dex:2,cha:1} },
-  { id:'dwarf', speed:25, name:'Dwarf', icon:'⛏', desc:'Darkvision, Resilience, +2 CON', stats:{con:2} },
-  { id:'halfling', speed:25, name:'Halfling', icon:'🌿', desc:'Lucky, Brave, +2 DEX', stats:{dex:2} },
-  { id:'gnome', speed:25, name:'Gnome', icon:'🔬', desc:'Gnome Cunning, +2 INT', stats:{int:2} },
+  { id:'dwarf', legacy:true, speed:25, name:'Dwarf', icon:'⛏', desc:'Darkvision, Resilience, +2 CON', stats:{con:2} },
+  { id:'halfling', legacy:true, speed:25, name:'Halfling', icon:'🌿', desc:'Lucky, Brave, +2 DEX', stats:{dex:2} },
+  { id:'gnome', legacy:true, speed:25, name:'Gnome', icon:'🔬', desc:'Gnome Cunning, +2 INT', stats:{int:2} },
   { id:'half-orc', speed:30, name:'Half-Orc', icon:'🪓', desc:'Relentless, +2 STR, +1 CON', stats:{str:2,con:1} },
   { id:'tiefling', speed:30, name:'Tiefling', icon:'😈', desc:'Hellish Resistance, +2 CHA, +1 INT', stats:{cha:2,int:1} },
   { id:'dragonborn', speed:30, name:'Dragonborn', icon:'🐉', desc:'Breath Weapon, +2 STR, +1 CHA', stats:{str:2,cha:1} },
   { id:'half-elf', speed:30, name:'Half-Elf', icon:'✨', desc:'Fey Ancestry, +2 CHA', stats:{cha:2} },
-  { id:'aasimar', speed:30, name:'Aasimar', icon:'👼', desc:'Celestial Resistance, Healing Hands', stats:{cha:2} },
+  { id:'aasimar', legacy:true, speed:30, name:'Aasimar', icon:'👼', desc:'Celestial Resistance, Healing Hands', stats:{cha:2} },
   { id:'tabaxi', speed:30, name:'Tabaxi', icon:'🐱', desc:'Feline Agility, +2 DEX, +1 CHA', stats:{dex:2,cha:1} },
+  // Subraces (2014 PHB; Aasimar from Volo's Guide). Stats are the full racial bonus.
+  { id:'high-elf', speed:30, name:'High Elf', icon:'🧝', desc:'Wizard cantrip, elf weapons, +2 DEX, +1 INT', stats:{dex:2,int:1} },
+  { id:'wood-elf', speed:35, name:'Wood Elf', icon:'🌲', desc:'Fleet of foot (35 ft), Mask of the Wild, +2 DEX, +1 WIS', stats:{dex:2,wis:1} },
+  { id:'hill-dwarf', speed:25, name:'Hill Dwarf', icon:'⛰️', desc:'Dwarven Toughness (+1 HP/level), +2 CON, +1 WIS', stats:{con:2,wis:1} },
+  { id:'mountain-dwarf', speed:25, name:'Mountain Dwarf', icon:'🏔️', desc:'Armour training, +2 CON, +2 STR', stats:{con:2,str:2} },
+  { id:'lightfoot-halfling', speed:25, name:'Lightfoot Halfling', icon:'🍀', desc:'Naturally Stealthy, Lucky, +2 DEX, +1 CHA', stats:{dex:2,cha:1} },
+  { id:'stout-halfling', speed:25, name:'Stout Halfling', icon:'🧆', desc:'Poison resilience, Lucky, +2 DEX, +1 CON', stats:{dex:2,con:1} },
+  { id:'forest-gnome', speed:25, name:'Forest Gnome', icon:'🍄', desc:'Minor Illusion, speak with small beasts, +2 INT, +1 DEX', stats:{int:2,dex:1} },
+  { id:'rock-gnome', speed:25, name:'Rock Gnome', icon:'⚙️', desc:'Tinker, Artificer\'s Lore, +2 INT, +1 CON', stats:{int:2,con:1} },
+  { id:'protector-aasimar', speed:30, name:'Protector Aasimar', icon:'🕊️', desc:'Radiant Soul (wings), +2 CHA, +1 WIS', stats:{cha:2,wis:1} },
+  { id:'scourge-aasimar', speed:30, name:'Scourge Aasimar', icon:'☀️', desc:'Radiant Consumption, +2 CHA, +1 CON', stats:{cha:2,con:1} },
+  { id:'fallen-aasimar', speed:30, name:'Fallen Aasimar', icon:'🌑', desc:'Necrotic Shroud, +2 CHA, +1 STR', stats:{cha:2,str:1} },
+  // Big and tough
+  { id:'goliath', speed:30, name:'Goliath', icon:'🗿', desc:'Stone\'s Endurance, Athletics, +2 STR, +1 CON', stats:{str:2,con:1} },
+  { id:'firbolg', speed:30, name:'Firbolg', icon:'🌳', desc:'Hidden Step, Firbolg Magic, +2 WIS, +1 STR', stats:{wis:2,str:1} },
+  { id:'bugbear', speed:30, name:'Bugbear', icon:'🐻', desc:'Long-Limbed, Surprise Attack, +2 STR, +1 DEX', stats:{str:2,dex:1} },
+  { id:'minotaur', speed:30, name:'Minotaur', icon:'🐂', desc:'Horns, Goring Rush, +2 STR, +1 CON', stats:{str:2,con:1} },
+  // Elemental and planar
+  { id:'air-genasi', speed:30, name:'Air Genasi', icon:'🌪️', desc:'Unending Breath, Levitate, +2 CON, +1 DEX', stats:{con:2,dex:1} },
+  { id:'earth-genasi', speed:30, name:'Earth Genasi', icon:'🪨', desc:'Earth Walk, Pass without Trace, +2 CON, +1 STR', stats:{con:2,str:1} },
+  { id:'fire-genasi', speed:30, name:'Fire Genasi', icon:'🔥', desc:'Fire resistance, Produce Flame, +2 CON, +1 INT', stats:{con:2,int:1} },
+  { id:'water-genasi', speed:30, swim:30, name:'Water Genasi', icon:'🌊', desc:'Amphibious, swim 30 ft, +2 CON, +1 WIS', stats:{con:2,wis:1} },
+  { id:'triton', speed:30, swim:30, name:'Triton', icon:'🔱', desc:'Amphibious, sea magic, +1 STR, +1 CON, +1 CHA', stats:{str:1,con:1,cha:1} },
+  { id:'githyanki', speed:30, name:'Githyanki', icon:'⚔️', desc:'Martial Prodigy, Misty Step, +2 STR, +1 INT', stats:{str:2,int:1} },
+  { id:'githzerai', speed:30, name:'Githzerai', icon:'🧘', desc:'Mental Discipline, Shield, +2 WIS, +1 INT', stats:{wis:2,int:1} },
+  // Small and unusual
+  { id:'goblin', speed:30, name:'Goblin', icon:'👺', desc:'Nimble Escape, Fury of the Small, +2 DEX, +1 CON', stats:{dex:2,con:1} },
+  { id:'kenku', speed:30, name:'Kenku', icon:'🐦‍⬛', desc:'Mimicry, Expert Forgery, +2 DEX, +1 WIS', stats:{dex:2,wis:1} },
+  { id:'harengon', speed:30, name:'Harengon', icon:'🐇', desc:'Hare-Trigger, Rabbit Hop, +2 DEX, +1 WIS', stats:{dex:2,wis:1} },
+  { id:'owlin', speed:30, fly:30, name:'Owlin', icon:'🦉', desc:'Flight, Darkvision 120 ft, +2 DEX, +1 WIS', stats:{dex:2,wis:1} },
+  { id:'lizardfolk', speed:30, swim:30, name:'Lizardfolk', icon:'🦎', desc:'Natural Armor, Bite, Hunter\'s Lore, +2 CON, +1 WIS', stats:{con:2,wis:1} },
   // Restored: added in March 2026, lost in a later paste
   { id:'kobold', speed:30, name:'Kobold', icon:'🦎', desc:'Pack Tactics, Darkvision, +2 DEX, -2 STR', stats:{dex:2,str:-2} },
   { id:'tortle', speed:30, name:'Tortle', icon:'🐢', desc:'Natural Armor (AC 17), Hold Breath, +2 STR, +1 WIS', stats:{str:2,wis:1} },
@@ -32,7 +63,7 @@ const RACE_TRAITS = {
     { name: 'Languages', text: 'Common and one extra language of your choice.' },
   ],
   elf: [
-    { name: 'Ability Score Increase', text: '+2 Dexterity. Your subrace adds another increase.', auto: 'ability scores', choose: 'subrace increase' },
+    { name: 'Ability Score Increase', text: '+2 Dexterity. Your subrace adds another increase.', auto: 'ability scores', choose: 'subrace (High or Wood Elf) with Edit' },
     { name: 'Speed', text: '30 ft.', auto: 'speed' },
     { name: 'Darkvision', text: 'See in dim light within 60 ft as if bright, and in darkness as if dim (no colour).' },
     { name: 'Keen Senses', text: 'Proficiency in Perception.', auto: 'skills' },
@@ -40,7 +71,7 @@ const RACE_TRAITS = {
     { name: 'Trance', text: 'Meditate for 4 hours instead of sleeping 8 to get the benefit of a long rest.' },
   ],
   dwarf: [
-    { name: 'Ability Score Increase', text: '+2 Constitution.', auto: 'ability scores and HP' },
+    { name: 'Ability Score Increase', text: '+2 Constitution. Your subrace adds another increase.', auto: 'ability scores and HP', choose: 'subrace (Hill or Mountain Dwarf) with Edit' },
     { name: 'Speed', text: '25 ft, not reduced by heavy armour.', auto: 'speed' },
     { name: 'Darkvision', text: '60 ft.' },
     { name: 'Dwarven Resilience', text: 'Advantage on saves against poison; resistance to poison damage.' },
@@ -48,14 +79,14 @@ const RACE_TRAITS = {
     { name: 'Stonecunning', text: 'Double proficiency on History checks about stonework.' },
   ],
   halfling: [
-    { name: 'Ability Score Increase', text: '+2 Dexterity.', auto: 'ability scores' },
+    { name: 'Ability Score Increase', text: '+2 Dexterity. Your subrace adds another increase.', auto: 'ability scores', choose: 'subrace (Lightfoot or Stout) with Edit' },
     { name: 'Speed', text: '25 ft.', auto: 'speed' },
     { name: 'Lucky', text: 'Reroll a 1 on an attack roll, ability check or saving throw; use the new roll.' },
     { name: 'Brave', text: 'Advantage on saves against being frightened.' },
     { name: 'Halfling Nimbleness', text: 'Move through the space of any creature larger than you.' },
   ],
   gnome: [
-    { name: 'Ability Score Increase', text: '+2 Intelligence.', auto: 'ability scores' },
+    { name: 'Ability Score Increase', text: '+2 Intelligence. Your subrace adds another increase.', auto: 'ability scores', choose: 'subrace (Forest or Rock Gnome) with Edit' },
     { name: 'Speed', text: '25 ft.', auto: 'speed' },
     { name: 'Darkvision', text: '60 ft.' },
     { name: 'Gnome Cunning', text: 'Advantage on Intelligence, Wisdom and Charisma saves against magic.' },
@@ -90,7 +121,7 @@ const RACE_TRAITS = {
     { name: 'Skill Versatility', text: 'Proficiency in two skills of your choice.', choose: 'two skills (mark them in Skills)' },
   ],
   aasimar: [
-    { name: 'Ability Score Increase', text: '+2 Charisma. Your subrace adds another increase.', auto: 'ability scores (+2 CHA only)', choose: 'subrace increase' },
+    { name: 'Ability Score Increase', text: '+2 Charisma. Your subrace adds another increase.', auto: 'ability scores (+2 CHA only)', choose: 'subrace (Protector, Scourge or Fallen) with Edit' },
     { name: 'Speed', text: '30 ft.', auto: 'speed' },
     { name: 'Darkvision', text: '60 ft.' },
     { name: 'Celestial Resistance', text: 'Resistance to necrotic and radiant damage.' },
@@ -158,8 +189,214 @@ RACE_TRAITS.drow = [
   { name: 'Drow Weapon Training', text: 'Proficient with rapiers, shortswords and hand crossbows.', auto: 'weapon attacks' },
 ];
 
-const RACE_SKILLS = { elf: ['Perception'], drow: ['Perception'], 'half-orc': ['Intimidation'], tabaxi: ['Perception', 'Stealth'], tortle: ['Survival'] };
-const RACE_WEAPONS = { dwarf: ['battleaxe', 'handaxe', 'light-hammer', 'warhammer'], drow: ['rapier', 'shortsword', 'hand-crossbow'] };
+// ---- Subraces and the added races ----
+// A subrace shows its parent race's traits (minus the parent's bonus and speed lines) plus its own
+function inheritTraits(parent) {
+  return (RACE_TRAITS[parent] || []).filter(t => t.name !== 'Ability Score Increase' && t.name !== 'Speed');
+}
+const ELF_WEAPONS_TEXT = 'Proficient with longswords, shortswords, shortbows and longbows.';
+RACE_TRAITS['high-elf'] = [
+  { name: 'Ability Score Increase', text: '+2 Dexterity, +1 Intelligence.', auto: 'ability scores' },
+  { name: 'Speed', text: '30 ft.', auto: 'speed' },
+  ...inheritTraits('elf'),
+  { name: 'Elf Weapon Training', text: ELF_WEAPONS_TEXT, auto: 'weapon attacks' },
+  { name: 'Cantrip', text: 'One wizard cantrip of your choice; Intelligence is the casting ability.', choose: 'the cantrip (add it under Spells)' },
+  { name: 'Extra Language', text: 'One extra language of your choice.' },
+];
+RACE_TRAITS['wood-elf'] = [
+  { name: 'Ability Score Increase', text: '+2 Dexterity, +1 Wisdom.', auto: 'ability scores' },
+  { name: 'Speed', text: '35 ft (Fleet of Foot).', auto: 'speed' },
+  ...inheritTraits('elf'),
+  { name: 'Elf Weapon Training', text: ELF_WEAPONS_TEXT, auto: 'weapon attacks' },
+  { name: 'Mask of the Wild', text: 'You can try to hide when only lightly obscured by foliage, heavy rain, falling snow, mist or similar.' },
+];
+RACE_TRAITS['hill-dwarf'] = [
+  { name: 'Ability Score Increase', text: '+2 Constitution, +1 Wisdom.', auto: 'ability scores and HP' },
+  { name: 'Speed', text: '25 ft, not reduced by heavy armour.', auto: 'speed' },
+  ...inheritTraits('dwarf'),
+  { name: 'Dwarven Toughness', text: '+1 maximum HP per level.', auto: 'HP' },
+];
+RACE_TRAITS['mountain-dwarf'] = [
+  { name: 'Ability Score Increase', text: '+2 Constitution, +2 Strength.', auto: 'ability scores and HP' },
+  { name: 'Speed', text: '25 ft, not reduced by heavy armour.', auto: 'speed' },
+  ...inheritTraits('dwarf'),
+  { name: 'Dwarven Armor Training', text: 'Proficient with light and medium armour. If you wear armour, set your AC by clicking the AC box.' },
+];
+RACE_TRAITS['lightfoot-halfling'] = [
+  { name: 'Ability Score Increase', text: '+2 Dexterity, +1 Charisma.', auto: 'ability scores' },
+  { name: 'Speed', text: '25 ft.', auto: 'speed' },
+  ...inheritTraits('halfling'),
+  { name: 'Naturally Stealthy', text: 'You can try to hide when obscured only by a creature at least one size larger than you.' },
+];
+RACE_TRAITS['stout-halfling'] = [
+  { name: 'Ability Score Increase', text: '+2 Dexterity, +1 Constitution.', auto: 'ability scores and HP' },
+  { name: 'Speed', text: '25 ft.', auto: 'speed' },
+  ...inheritTraits('halfling'),
+  { name: 'Stout Resilience', text: 'Advantage on saves against poison; resistance to poison damage.' },
+];
+RACE_TRAITS['forest-gnome'] = [
+  { name: 'Ability Score Increase', text: '+2 Intelligence, +1 Dexterity.', auto: 'ability scores' },
+  { name: 'Speed', text: '25 ft.', auto: 'speed' },
+  ...inheritTraits('gnome'),
+  { name: 'Natural Illusionist', text: 'Minor Illusion cantrip; Intelligence is the casting ability.' },
+  { name: 'Speak with Small Beasts', text: 'Communicate simple ideas with Small or smaller beasts.' },
+];
+RACE_TRAITS['rock-gnome'] = [
+  { name: 'Ability Score Increase', text: '+2 Intelligence, +1 Constitution.', auto: 'ability scores and HP' },
+  { name: 'Speed', text: '25 ft.', auto: 'speed' },
+  ...inheritTraits('gnome'),
+  { name: 'Artificer\'s Lore', text: 'Double your proficiency bonus on History checks about magic items, alchemical objects or technological devices.' },
+  { name: 'Tinker', text: 'Proficient with tinker\'s tools; build tiny clockwork devices (toy, fire starter, music box).' },
+];
+const AASIMAR_BASE = () => inheritTraits('aasimar');
+RACE_TRAITS['protector-aasimar'] = [
+  { name: 'Ability Score Increase', text: '+2 Charisma, +1 Wisdom.', auto: 'ability scores' },
+  { name: 'Speed', text: '30 ft.', auto: 'speed' },
+  ...AASIMAR_BASE(),
+  { name: 'Radiant Soul', text: 'From level 3, action: transform for 1 minute. Spectral wings give a flying speed of 30 ft, and once per turn one attack or spell deals extra radiant damage equal to your level. Once per long rest.' },
+];
+RACE_TRAITS['scourge-aasimar'] = [
+  { name: 'Ability Score Increase', text: '+2 Charisma, +1 Constitution.', auto: 'ability scores and HP' },
+  { name: 'Speed', text: '30 ft.', auto: 'speed' },
+  ...AASIMAR_BASE(),
+  { name: 'Radiant Consumption', text: 'From level 3, action: blaze with light for 1 minute. You and creatures within 10 ft take radiant damage equal to half your level each turn, and once per turn one attack or spell deals extra radiant damage equal to your level. Once per long rest.' },
+];
+RACE_TRAITS['fallen-aasimar'] = [
+  { name: 'Ability Score Increase', text: '+2 Charisma, +1 Strength.', auto: 'ability scores' },
+  { name: 'Speed', text: '30 ft.', auto: 'speed' },
+  ...AASIMAR_BASE(),
+  { name: 'Necrotic Shroud', text: 'From level 3, action: transform for 1 minute. Creatures within 10 ft must make a Charisma save (DC 8 + proficiency + CHA modifier) or be frightened of you, and once per turn one attack or spell deals extra necrotic damage equal to your level. Once per long rest.' },
+];
+RACE_TRAITS.goliath = [
+  { name: 'Ability Score Increase', text: '+2 Strength, +1 Constitution.', auto: 'ability scores and HP' },
+  { name: 'Speed', text: '30 ft.', auto: 'speed' },
+  { name: 'Natural Athlete', text: 'Proficiency in Athletics.', auto: 'skills' },
+  { name: 'Stone\'s Endurance', text: 'Reaction when you take damage: reduce it by 1d12 + your CON modifier. Once per short or long rest.' },
+  { name: 'Powerful Build', text: 'Count as one size larger for carrying capacity and what you can push, drag or lift.' },
+  { name: 'Mountain Born', text: 'Resistance to cold damage; acclimated to high altitude.' },
+];
+RACE_TRAITS.firbolg = [
+  { name: 'Ability Score Increase', text: '+2 Wisdom, +1 Strength.', auto: 'ability scores' },
+  { name: 'Speed', text: '30 ft.', auto: 'speed' },
+  { name: 'Firbolg Magic', text: 'Cast Detect Magic and Disguise Self (can appear up to 3 ft shorter) once each per short or long rest; Wisdom is the casting ability.' },
+  { name: 'Hidden Step', text: 'Bonus action: turn invisible until the start of your next turn or until you attack, deal damage or force a save. Once per short or long rest.' },
+  { name: 'Powerful Build', text: 'Count as one size larger for carrying capacity and what you can push, drag or lift.' },
+  { name: 'Speech of Beast and Leaf', text: 'Beasts and plants understand the meaning of your words; advantage on Charisma checks to influence them.' },
+];
+RACE_TRAITS.bugbear = [
+  { name: 'Ability Score Increase', text: '+2 Strength, +1 Dexterity.', auto: 'ability scores' },
+  { name: 'Speed', text: '30 ft.', auto: 'speed' },
+  { name: 'Darkvision', text: '60 ft.' },
+  { name: 'Long-Limbed', text: 'On your turn, your melee reach is 5 ft longer.' },
+  { name: 'Powerful Build', text: 'Count as one size larger for carrying capacity and what you can push, drag or lift.' },
+  { name: 'Sneaky', text: 'Proficiency in Stealth.', auto: 'skills' },
+  { name: 'Surprise Attack', text: 'In the first round of combat, hitting a surprised creature deals an extra 2d6 damage (once per combat).' },
+];
+RACE_TRAITS.minotaur = [
+  { name: 'Ability Score Increase', text: '+2 Strength, +1 Constitution.', auto: 'ability scores and HP' },
+  { name: 'Speed', text: '30 ft.', auto: 'speed' },
+  { name: 'Horns', text: 'Your horns are a natural weapon: unarmed strikes deal 1d6 piercing damage.' },
+  { name: 'Goring Rush', text: 'After you Dash and move at least 20 ft, you can make a horn attack as a bonus action.' },
+  { name: 'Hammering Horns', text: 'After a melee attack on your turn, bonus action: try to shove the target with your horns.' },
+  { name: 'Imposing Presence', text: 'Proficiency in Intimidation or Persuasion (your choice).', choose: 'Intimidation or Persuasion (mark it in Skills)' },
+];
+RACE_TRAITS['air-genasi'] = [
+  { name: 'Ability Score Increase', text: '+2 Constitution, +1 Dexterity.', auto: 'ability scores and HP' },
+  { name: 'Speed', text: '30 ft.', auto: 'speed' },
+  { name: 'Unending Breath', text: 'You can hold your breath indefinitely while not incapacitated.' },
+  { name: 'Mingle with the Wind', text: 'Cast Levitate once per long rest, without material components; Constitution is the casting ability.' },
+];
+RACE_TRAITS['earth-genasi'] = [
+  { name: 'Ability Score Increase', text: '+2 Constitution, +1 Strength.', auto: 'ability scores and HP' },
+  { name: 'Speed', text: '30 ft.', auto: 'speed' },
+  { name: 'Earth Walk', text: 'Ignore difficult terrain made of earth or stone.' },
+  { name: 'Merge with Stone', text: 'Cast Pass without Trace once per long rest, without material components; Constitution is the casting ability.' },
+];
+RACE_TRAITS['fire-genasi'] = [
+  { name: 'Ability Score Increase', text: '+2 Constitution, +1 Intelligence.', auto: 'ability scores and HP' },
+  { name: 'Speed', text: '30 ft.', auto: 'speed' },
+  { name: 'Darkvision', text: '60 ft (your vision in darkness is in shades of red).' },
+  { name: 'Fire Resistance', text: 'Resistance to fire damage.' },
+  { name: 'Reach to the Blaze', text: 'Produce Flame cantrip. At level 3, Burning Hands once per long rest (as a 1st-level spell). Constitution is the casting ability.' },
+];
+RACE_TRAITS['water-genasi'] = [
+  { name: 'Ability Score Increase', text: '+2 Constitution, +1 Wisdom.', auto: 'ability scores and HP' },
+  { name: 'Speed', text: '30 ft, swimming 30 ft.', auto: 'speed' },
+  { name: 'Acid Resistance', text: 'Resistance to acid damage.' },
+  { name: 'Amphibious', text: 'Breathe air and water.' },
+  { name: 'Call to the Wave', text: 'Shape Water cantrip. At level 3, Create or Destroy Water once per long rest (as a 2nd-level spell). Constitution is the casting ability.' },
+];
+RACE_TRAITS.triton = [
+  { name: 'Ability Score Increase', text: '+1 Strength, +1 Constitution, +1 Charisma.', auto: 'ability scores and HP' },
+  { name: 'Speed', text: '30 ft, swimming 30 ft.', auto: 'speed' },
+  { name: 'Amphibious', text: 'Breathe air and water.' },
+  { name: 'Control Air and Water', text: 'Fog Cloud once per long rest. At level 3, Gust of Wind; at level 5, Wall of Water; each once per long rest. Charisma is the casting ability.' },
+  { name: 'Emissary of the Sea', text: 'Communicate simple ideas with beasts that breathe water.' },
+  { name: 'Guardians of the Depths', text: 'Resistance to cold damage; ignore drawbacks of deep, underwater environments.' },
+];
+RACE_TRAITS.githyanki = [
+  { name: 'Ability Score Increase', text: '+2 Strength, +1 Intelligence.', auto: 'ability scores' },
+  { name: 'Speed', text: '30 ft.', auto: 'speed' },
+  { name: 'Decadent Mastery', text: 'One language, and proficiency in one skill or tool, of your choice.', choose: 'a skill or tool (mark a skill in Skills)' },
+  { name: 'Martial Prodigy', text: 'Proficient with light and medium armour, shortswords, longswords and greatswords.', auto: 'weapon attacks' },
+  { name: 'Githyanki Psionics', text: 'Mage Hand cantrip (the hand is invisible). At level 3, Jump once per long rest; at level 5, Misty Step once per long rest. Intelligence is the casting ability.' },
+];
+RACE_TRAITS.githzerai = [
+  { name: 'Ability Score Increase', text: '+2 Wisdom, +1 Intelligence.', auto: 'ability scores' },
+  { name: 'Speed', text: '30 ft.', auto: 'speed' },
+  { name: 'Mental Discipline', text: 'Advantage on saves against being charmed or frightened.' },
+  { name: 'Githzerai Psionics', text: 'Mage Hand cantrip (the hand is invisible). At level 3, Shield once per long rest; at level 5, Detect Thoughts once per long rest. Wisdom is the casting ability.' },
+];
+RACE_TRAITS.goblin = [
+  { name: 'Ability Score Increase', text: '+2 Dexterity, +1 Constitution.', auto: 'ability scores and HP' },
+  { name: 'Speed', text: '30 ft.', auto: 'speed' },
+  { name: 'Darkvision', text: '60 ft.' },
+  { name: 'Fury of the Small', text: 'When you damage a creature larger than you, add damage equal to your level. Once per short or long rest.' },
+  { name: 'Nimble Escape', text: 'Disengage or Hide as a bonus action on each of your turns.' },
+];
+RACE_TRAITS.kenku = [
+  { name: 'Ability Score Increase', text: '+2 Dexterity, +1 Wisdom.', auto: 'ability scores' },
+  { name: 'Speed', text: '30 ft.', auto: 'speed' },
+  { name: 'Expert Forgery', text: 'Advantage on checks to produce forgeries or copies of objects you\'ve seen.' },
+  { name: 'Kenku Training', text: 'Proficiency in two of Acrobatics, Deception, Stealth and Sleight of Hand.', choose: 'two skills (mark them in Skills)' },
+  { name: 'Mimicry', text: 'Mimic sounds and voices you have heard; a listener needs a Wisdom (Insight) check against your Charisma (Deception) to tell.' },
+];
+RACE_TRAITS.harengon = [
+  { name: 'Ability Score Increase', text: '+2 Dexterity, +1 Wisdom. (The book lets you put these anywhere; change them with Edit if you prefer.)', auto: 'ability scores' },
+  { name: 'Speed', text: '30 ft.', auto: 'speed' },
+  { name: 'Hare-Trigger', text: 'Add your proficiency bonus to initiative.', auto: 'initiative' },
+  { name: 'Leporine Senses', text: 'Proficiency in Perception.', auto: 'skills' },
+  { name: 'Lucky Footwork', text: 'Reaction when you fail a Dexterity save: add 1d4, possibly turning it into a success.' },
+  { name: 'Rabbit Hop', text: 'Bonus action: jump 5 ft × your proficiency bonus without provoking opportunity attacks. Uses equal to your proficiency bonus per long rest.' },
+];
+RACE_TRAITS.owlin = [
+  { name: 'Ability Score Increase', text: '+2 Dexterity, +1 Wisdom. (The book lets you put these anywhere; change them with Edit if you prefer.)', auto: 'ability scores' },
+  { name: 'Speed', text: '30 ft, flying 30 ft (not while wearing medium or heavy armour).', auto: 'speed' },
+  { name: 'Darkvision', text: '120 ft.' },
+  { name: 'Flight', text: 'Flying speed equal to your walking speed, if you aren\'t wearing medium or heavy armour.' },
+  { name: 'Silent Feathers', text: 'Proficiency in Stealth.', auto: 'skills' },
+];
+RACE_TRAITS.lizardfolk = [
+  { name: 'Ability Score Increase', text: '+2 Constitution, +1 Wisdom.', auto: 'ability scores and HP' },
+  { name: 'Speed', text: '30 ft, swimming 30 ft.', auto: 'speed' },
+  { name: 'Natural Armor', text: 'Without armour, your AC is 13 + your DEX modifier (a shield still adds its bonus).', auto: 'AC' },
+  { name: 'Bite', text: 'Your fanged maw is a natural weapon: unarmed strikes deal 1d6 piercing damage.' },
+  { name: 'Hungry Jaws', text: 'Bonus action: a special bite attack; on a hit you gain temporary HP equal to your CON modifier. Once per short or long rest.' },
+  { name: 'Hold Breath', text: 'Hold your breath for up to 15 minutes.' },
+  { name: 'Hunter\'s Lore', text: 'Proficiency in two of Animal Handling, Nature, Perception, Stealth and Survival.', choose: 'two skills (mark them in Skills)' },
+  { name: 'Cunning Artisan', text: 'During a short rest, craft a simple weapon, shield or tool from a slain creature\'s bones and hide.' },
+];
+
+const RACE_SKILLS = { elf: ['Perception'], drow: ['Perception'], 'half-orc': ['Intimidation'], tabaxi: ['Perception', 'Stealth'], tortle: ['Survival'],
+  'high-elf': ['Perception'], 'wood-elf': ['Perception'], goliath: ['Athletics'], bugbear: ['Stealth'],
+  harengon: ['Perception'], owlin: ['Stealth'] };
+const RACE_WEAPONS = { dwarf: ['battleaxe', 'handaxe', 'light-hammer', 'warhammer'], drow: ['rapier', 'shortsword', 'hand-crossbow'],
+  'high-elf': ['longsword', 'shortsword', 'shortbow', 'longbow'], 'wood-elf': ['longsword', 'shortsword', 'shortbow', 'longbow'],
+  'hill-dwarf': ['battleaxe', 'handaxe', 'light-hammer', 'warhammer'], 'mountain-dwarf': ['battleaxe', 'handaxe', 'light-hammer', 'warhammer'],
+  githyanki: ['shortsword', 'longsword', 'greatsword'] };
+const RACE_HP_PER_LEVEL = { 'hill-dwarf': 1 };   // Dwarven Toughness
+const RACE_INIT_PROF = ['harengon'];             // Hare-Trigger
+const RACE_NATURAL_AC = { lizardfolk: 13 };      // 13 + DEX without armour
 const RACE_AC_BONUS = { warforged: 1 };
 
 const CLASSES = [

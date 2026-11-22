@@ -25,7 +25,7 @@ function compactSheetHTML(c, prefix) {
   const getMod = s => Math.floor(((c.stats[s]||10) - 10) / 2);
   const hpPct = Math.max(0, Math.round(c.currentHp / c.maxHp * 100));
   const hpColor = hpPct > 60 ? 'var(--green-health)' : hpPct > 25 ? 'var(--amber)' : 'var(--blood)';
-  const initMod = getMod('dex');
+  const initMod = initiativeBonus(c);
   const spellMod = cls?.statHp ? getMod(cls.statHp) : 0;
   const spellDC = 8 + profBonus + spellMod;
   const spellAtk = profBonus + spellMod;

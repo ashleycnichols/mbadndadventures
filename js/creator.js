@@ -97,7 +97,8 @@ function renderCreatorStep() {
       break;
 
     case 1: // Race
-      html = `<div class="option-grid">${RACES.map(r =>
+      // Plain Elf, Dwarf, Halfling, Gnome and Aasimar are only shown to characters that already have them
+      html = `<div class="option-grid">${RACES.filter(r => !r.legacy || r.id === d.race).map(r =>
         `<div class="option-card ${d.race===r.id?'selected':''}" onclick="selectOption('race','${r.id}')">
           <div class="opt-icon">${r.icon}</div>
           <div class="opt-name">${r.name}</div>
@@ -129,7 +130,7 @@ function renderCreatorStep() {
       const clsObj4 = CLASSES.find(c => c.id === d.class);
       const isNew = !creatorState.editingId;
       const rb = isNew ? racialBonus(d.race) : {};
-      const previewHp = calcMaxHp(d.class, d.level, isNew ? addRacialBonus(d.stats, d.race) : d.stats);
+      const previewHp = calcMaxHp(d.class, d.level, isNew ? addRacialBonus(d.stats, d.race) : d.stats, d.race);
       html = `<p style="font-style:italic;color:var(--text-muted);margin-bottom:1rem;font-size:0.9rem">${isNew
           ? `Enter your base ability scores, or click "Roll". Your ${esc(getRace(d.race))} bonuses are added automatically when you save.`
           : 'These are the final scores, including racial bonuses.'}</p>
@@ -236,7 +237,7 @@ function renderCreatorStep() {
     }
 
     case 6: // Finish
-      const calcedHp = calcMaxHp(d.class, d.level, d.stats);
+      const calcedHp = calcMaxHp(d.class, d.level, d.stats, d.race);
       html = `<div class="form-full"><label class="form-label">Backstory</label>
         <textarea class="parchment-input" id="f-backstory" rows="4" placeholder="Where did you come from? What drives you?">${esc(d.backstory)}</textarea></div>
       <div class="form-full"><label class="form-label">Notes / Equipment</label>
@@ -280,7 +281,7 @@ function updateHpPreview() {
     if (v) creatorState.draft.stats[s] = v;
   });
   const d = creatorState.draft;
-  const hp = calcMaxHp(d.class, d.level, creatorState.editingId ? d.stats : addRacialBonus(d.stats, d.race));
+  const hp = calcMaxHp(d.class, d.level, creatorState.editingId ? d.stats : addRacialBonus(d.stats, d.race), d.race);
   const el = document.getElementById('hp-preview-val');
   if (el) el.textContent = hp;
 }
@@ -290,14 +291,16 @@ function creatorFinalStats(d) {
   return creatorState.editingId ? d.stats : addRacialBonus(d.stats, d.race);
 }
 
-function calcMaxHp(classId, level, stats) {
+function calcMaxHp(classId, level, stats, raceId) {
   const cls = CLASSES.find(c => c.id === classId);
   if (!cls) return 10;
   const conMod = Math.floor(((stats?.con || 10) - 10) / 2);
   const hd = cls.hd;
-  // Level 1: max HD + con. Subsequent levels: average roll (hd/2 + 1) + con
+  // Level 1: max HD + con. Subsequent levels: average roll (hd/2 + 1) + con.
+  // Some races add HP every level (Hill Dwarf: Dwarven Toughness).
   const avgPerLevel = Math.floor(hd / 2) + 1;
-  return (hd + conMod) + (level - 1) * (avgPerLevel + conMod);
+  const raceHp = (RACE_HP_PER_LEVEL[raceId] || 0) * level;
+  return (hd + conMod) + (level - 1) * (avgPerLevel + conMod) + raceHp;
 }
 
 function showSpellDetail(id) {
@@ -470,7 +473,7 @@ function saveCreatorFields() {
     });
     // New characters: HP from class hit die + CON. Edits keep their HP (see saveCharacter).
     if (!creatorState.editingId) {
-      const hp = calcMaxHp(d.class, d.level, addRacialBonus(d.stats, d.race));
+      const hp = calcMaxHp(d.class, d.level, addRacialBonus(d.stats, d.race), d.race);
       d.maxHp = hp;
       d.currentHp = hp;
     }
@@ -479,7 +482,7 @@ function saveCreatorFields() {
     d.backstory = document.getElementById('f-backstory')?.value ?? d.backstory;
     d.notes = document.getElementById('f-notes')?.value ?? d.notes;
     if (!creatorState.editingId) {
-      const hp = calcMaxHp(d.class, d.level, addRacialBonus(d.stats, d.race));
+      const hp = calcMaxHp(d.class, d.level, addRacialBonus(d.stats, d.race), d.race);
       d.maxHp = hp;
       d.currentHp = hp;
     }
@@ -507,15 +510,18 @@ function saveCharacter() {
       result.stats = addRacialBonus(addRacialBonus(result.stats, o.race, -1), result.race);
       result.racialRace = result.race;
     }
+    // Race changes can add or remove HP per level (Hill Dwarf)
+    const raceHpDiff = ((RACE_HP_PER_LEVEL[result.race] || 0) - (RACE_HP_PER_LEVEL[o.race] || 0)) * result.level;
     // Adjust HP only for what changed: class or level (recalculate) or CON (modifier x level)
     const conMod = st => Math.floor(((st?.con || 10) - 10) / 2);
     let diff = 0;
     if (result.class !== o.class || result.level !== o.level) {
-      const newMax = calcMaxHp(result.class, result.level, result.stats);
+      const newMax = calcMaxHp(result.class, result.level, result.stats, result.race);
       diff = newMax - live.maxHp;
     } else if (conMod(result.stats) !== conMod(o.stats)) {
       diff = (conMod(result.stats) - conMod(o.stats)) * result.level;
     }
+    if (!(result.class !== o.class || result.level !== o.level)) diff += raceHpDiff; // a full recalculation already includes it
     result.maxHp = Math.max(1, live.maxHp + diff);
     result.currentHp = Math.max(0, Math.min(result.maxHp, live.currentHp + diff));
   } else {
