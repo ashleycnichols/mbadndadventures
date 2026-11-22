@@ -1,6 +1,10 @@
 // ============================================================
 // UTILS
 // ============================================================
+// Player names match regardless of capitals and extra spaces ("aoife " is Aoife)
+function normName(n) { return String(n || '').trim().replace(/\s+/g, ' ').toLowerCase(); }
+function isMine(ch) { return !!state.currentUser && normName(ch?.player) === normName(state.currentUser.name); }
+
 function esc(s) {
   if (s === null || s === undefined || s === '') return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');

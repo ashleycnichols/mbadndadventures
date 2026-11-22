@@ -22,7 +22,7 @@ const STARTING_EQUIPMENT = {
 // Characters belonging to the logged-in player, and the one they're playing now
 function myCharacters() {
   if (!state.currentUser || state.currentUser.isDM) return [];
-  return state.characters.filter(ch => ch.player === state.currentUser.name);
+  return state.characters.filter(isMine);
 }
 function myActiveChar() {
   const mine = myCharacters();

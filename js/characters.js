@@ -6,7 +6,7 @@ function renderCharacters() {
   const isDM = state.currentUser.isDM;
   const chars = isDM
     ? state.characters
-    : state.characters.filter(ch => ch.player === state.currentUser.name);
+    : state.characters.filter(isMine);
 
   let html = '';
   chars.forEach(c => {

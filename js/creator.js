@@ -461,10 +461,10 @@ function saveCreatorFields() {
     // For players, always lock player field to their login name — never trust the form value
     if (state.currentUser?.isDM) {
       d.player = document.getElementById('f-player')?.value || d.player;
-    } else {
-      d.player = state.currentUser.name;
+    } else if (!isMine(d)) {
+      d.player = state.currentUser.name; // keeps the original spelling when it's already theirs
     }
-    d.level = +document.getElementById('f-level')?.value || d.level;
+    d.level = Math.min(20, Math.max(1, Math.floor(+document.getElementById('f-level')?.value || d.level || 1)));
   }
   if (step === 4) {
     ['str','dex','con','int','wis','cha'].forEach(s => {
@@ -496,8 +496,8 @@ const CREATOR_FIELDS = ['name','player','level','race','class','background','sta
 function saveCharacter() {
   saveCreatorFields();
   const d = creatorState.draft;
-  // Always stamp the correct player name for players
-  if (!state.currentUser?.isDM) d.player = state.currentUser.name;
+  // Always stamp the correct player name for players (keeping the original spelling)
+  if (!state.currentUser?.isDM && !isMine(d)) d.player = state.currentUser.name;
 
   let result;
   const live = creatorState.editingId && state.characters.find(c => c.id === creatorState.editingId);

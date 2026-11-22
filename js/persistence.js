@@ -96,7 +96,7 @@ function cacheLocally() {
 
 function canWriteChar(ch) {
   if (!state.currentUser) return false;
-  return state.currentUser.isDM || ch.player === state.currentUser.name;
+  return state.currentUser.isDM || isMine(ch);
 }
 
 function save() {

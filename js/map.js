@@ -945,7 +945,7 @@ function canMoveToken(t) {
   if (state.currentUser.isDM) return true;
   if (t.type === 'player') {
     const c = state.characters.find(x => x.id === t.charId);
-    return c && c.player === state.currentUser.name;
+    return c && isMine(c);
   }
   return false;
 }
