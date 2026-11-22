@@ -510,13 +510,15 @@ function saveCharacter() {
       result.stats = addRacialBonus(addRacialBonus(result.stats, o.race, -1), result.race);
       result.racialRace = result.race;
     }
+    // A new class means the old specialty no longer applies
+    if (result.class !== o.class) { delete result.subclass; delete result.subclassOption; delete result.resUsed; result.bladesong = false; }
     // Race changes can add or remove HP per level (Hill Dwarf)
     const raceHpDiff = ((RACE_HP_PER_LEVEL[result.race] || 0) - (RACE_HP_PER_LEVEL[o.race] || 0)) * result.level;
     // Adjust HP only for what changed: class or level (recalculate) or CON (modifier x level)
     const conMod = st => Math.floor(((st?.con || 10) - 10) / 2);
     let diff = 0;
     if (result.class !== o.class || result.level !== o.level) {
-      const newMax = calcMaxHp(result.class, result.level, result.stats, result.race);
+      const newMax = calcMaxHp(result.class, result.level, result.stats, result.race) + subHpPerLevel(result) * result.level;
       diff = newMax - live.maxHp;
     } else if (conMod(result.stats) !== conMod(o.stats)) {
       diff = (conMod(result.stats) - conMod(o.stats)) * result.level;

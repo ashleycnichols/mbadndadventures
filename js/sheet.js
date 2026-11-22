@@ -77,7 +77,7 @@ function renderMySheet() {
 function renderSheet(c) {
   normalizeChar(c);
   const race = RACES.find(r => r.id === c.race);
-  const cls = CLASSES.find(cl => cl.id === c.class);
+  const cls = casterClass(c);   // includes Eldritch Knight / Arcane Trickster spellcasting
   const bg = BACKGROUNDS.find(b => b.id === c.background);
   const stats = ['str','dex','con','int','wis','cha'];
   const labels = {str:'Strength',dex:'Dexterity',con:'Constitution',int:'Intelligence',wis:'Wisdom',cha:'Charisma'};
@@ -97,7 +97,9 @@ function renderSheet(c) {
   const hpPct = Math.max(0, Math.round(c.currentHp / c.maxHp * 100));
   const hpColor = hpPct > 60 ? 'var(--green-health)' : hpPct > 25 ? 'var(--amber)' : 'var(--blood)';
 
-  const spellObjs = c.spells.map(id => SPELLS.find(s => s.id === id)).filter(Boolean);
+  const spellObjs = allSpellIds(c).map(id => SPELLS.find(s => s.id === id)).filter(Boolean);
+  const granted = grantedSpells(c);
+  const star = id => granted.includes(id) ? ` <span title="${esc(grantedLabel(c))}" style="color:var(--gold-text);font-size:0.75rem">★</span>` : '';
   const weaponObjs = c.weapons.map(id => WEAPONS.find(w => w.id === id)).filter(Boolean);
   const cantrips = spellObjs.filter(s => s.level === 0);
   const leveledSpells = spellObjs.filter(s => s.level > 0);
@@ -123,14 +125,7 @@ function renderSheet(c) {
         <div>
           <div style="font-family:var(--font-display);font-size:1.4rem;color:var(--text-main)">${esc(c.name) || 'Unnamed Hero'}</div>
           <div style="font-family:var(--font-ui);font-size:0.8rem;color:var(--text-muted);margin-top:0.2rem">${race?.name||''} ${cls?.name||''}${c.subclass ? ' (' + esc(c.subclass) + ')' : ''} · Level ${c.level} · ${bg?.name||'No Background'}${c.player ? ' · ' + esc(c.player) : ''}</div>
-          ${SUBCLASSES[c.class] && c.level >= (SUBCLASS_LEVEL[c.class]||3) ? `
-          <div style="display:flex;align-items:center;gap:0.4rem;margin-top:0.35rem">
-            <span style="font-family:var(--font-ui);font-size:0.7rem;color:var(--gold-text);text-transform:uppercase;letter-spacing:0.05em">${SUBCLASS_LABEL[c.class]||'Subclass'}:</span>
-            <select onchange="setSubclass('${c.id}', this.value)" style="padding:0.25rem 0.4rem;border:1px solid ${c.subclass?'var(--border)':'var(--gold)'};background:var(--parchment);border-radius:2px;font-family:var(--font-ui);font-size:0.75rem;color:var(--text-main)">
-              <option value="" ${!c.subclass?'selected':''}>— choose —</option>
-              ${SUBCLASSES[c.class].map(sc => `<option value="${sc}" ${c.subclass===sc?'selected':''}>${sc}</option>`).join('')}
-            </select>
-          </div>` : ''}
+          ${subclassPickerHTML(c)}
         </div>
       </div>
       <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
@@ -265,15 +260,21 @@ function renderSheet(c) {
       <!-- RIGHT COLUMN -->
       <div style="display:flex;flex-direction:column;gap:1rem">
 
+        <!-- CLASS RESOURCES (Ki, Rage, Channel Divinity...) -->
+        ${resourcesHTML(c)}
+
         <!-- SKILLS -->
         <div style="background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:1rem">
-          <div style="font-family:var(--font-ui);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.5rem">Skills <span style="text-transform:none;letter-spacing:0;font-style:italic">· ● proficient, click to change</span></div>
+          <div style="font-family:var(--font-ui);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.5rem">Skills <span style="text-transform:none;letter-spacing:0;font-style:italic">· ● proficient${canExpertise(c) ? ', ◉ expertise' : ''}, click to change</span></div>
           <div class="skills-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:0.15rem">
             ${SKILL_LIST.map(sk => {
               const prof = isSkillProficient(c, sk.name);
-              const fromBg = backgroundSkills(c).includes(sk.name) || raceSkills(c).includes(sk.name);
-              return `<div onclick="toggleSkillProf('${c.id}','${sk.name}')" title="${backgroundSkills(c).includes(sk.name) ? 'Proficient from background' : raceSkills(c).includes(sk.name) ? 'Proficient from race' : prof ? 'Proficient. Click to remove' : 'Click to mark proficient'}" style="display:flex;justify-content:space-between;align-items:center;font-size:0.82rem;padding:0.1rem 0.25rem;cursor:${fromBg ? 'default' : 'pointer'}">
-                <span style="color:var(--text-main)"><span style="color:${prof ? 'var(--gold)' : 'var(--border)'}">${prof ? '●' : '○'}</span> ${sk.name} <span style="color:var(--text-muted);font-size:0.72rem">(${shortLabels[sk.ab]})</span></span>
+              const expert = hasExpertise(c, sk.name);
+              const fromBg = fixedSkills(c).includes(sk.name);
+              const src = backgroundSkills(c).includes(sk.name) ? 'Proficient from background' : raceSkills(c).includes(sk.name) ? 'Proficient from race' : subSkills(c).includes(sk.name) ? 'Proficient from ' + c.subclass : prof ? 'Proficient' : '';
+              const tip = expert ? 'Expertise (double proficiency). Click to remove' : canExpertise(c) && prof ? src + '. Click to mark Expertise' : fromBg ? src : prof ? 'Proficient. Click to remove' : 'Click to mark proficient';
+              return `<div onclick="toggleSkillProf('${c.id}','${sk.name}')" title="${tip}" style="display:flex;justify-content:space-between;align-items:center;font-size:0.82rem;padding:0.1rem 0.25rem;cursor:${fromBg && !canExpertise(c) ? 'default' : 'pointer'}">
+                <span style="color:var(--text-main)"><span style="color:${prof ? 'var(--gold)' : 'var(--border)'}">${expert ? '◉' : prof ? '●' : '○'}</span> ${sk.name} <span style="color:var(--text-muted);font-size:0.72rem">(${shortLabels[sk.ab]})</span></span>
                 <span style="font-family:var(--font-ui);color:var(--text-main);font-size:0.8rem">${fmtMod(skillBonus(c, sk.name))}</span>
               </div>`;
             }).join('')}
@@ -291,7 +292,7 @@ function renderSheet(c) {
             <div style="font-size:0.7rem;color:var(--text-muted);font-family:var(--font-ui)">Type</div>
             ${weaponObjs.map(w => {
               const wa = weaponAttack(c, w);
-              return `<div style="font-family:var(--font-ui);font-size:0.85rem">${w.name}${wa.proficient ? '' : ' <span title="Not proficient: no proficiency bonus" style="color:var(--blood)">⚠</span>'}</div>
+              return `<div style="font-family:var(--font-ui);font-size:0.85rem">${w.name}${wa.proficient ? '' : ' <span title="Not proficient: no proficiency bonus" style="color:var(--blood)">⚠</span>'}${wa.crit < 20 ? ` <span style="font-size:0.72rem;color:var(--gold-text)" title="Critical hit range">crit ${wa.crit}–20</span>` : ''}</div>
                 <div style="font-family:var(--font-ui);font-size:0.85rem;color:var(--gold-text)">${fmtMod(wa.atk)}</div>
                 <div style="font-family:var(--font-ui);font-size:0.85rem;color:var(--blood)">${wa.dmg}</div>
                 <div style="font-size:0.78rem;color:var(--text-muted);font-style:italic">${w.type}</div>`;
@@ -323,7 +324,7 @@ function renderSheet(c) {
         <div style="background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:1rem">
           <div style="font-family:var(--font-ui);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.4rem">Cantrips (at will)</div>
           <div style="display:flex;flex-wrap:wrap;gap:0.3rem">
-            ${cantrips.map(sp => `<span onclick="showSheetSpellDetail('${sp.id}','${c.id}')" style="background:var(--parchment);border:1px solid var(--border);border-radius:2px;padding:0.2rem 0.6rem;font-family:var(--font-ui);font-size:0.78rem;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">${sp.name}</span>`).join('')}
+            ${cantrips.map(sp => `<span onclick="showSheetSpellDetail('${sp.id}','${c.id}')" style="background:var(--parchment);border:1px solid var(--border);border-radius:2px;padding:0.2rem 0.6rem;font-family:var(--font-ui);font-size:0.78rem;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">${sp.name}${star(sp.id)}</span>`).join('')}
           </div>
         </div>` : ''}
 
@@ -342,7 +343,7 @@ function renderSheet(c) {
               ${group.map(sp => {
                 const canCast = castOptions(c, sp).length > 0;
                 return `<div onclick="showSheetSpellDetail('${sp.id}','${c.id}')" style="display:flex;align-items:center;gap:0.5rem;font-size:0.9rem;padding:0.25rem 0.25rem;border-bottom:1px solid var(--parchment-deeper);cursor:pointer;border-radius:2px;transition:background 0.12s" onmouseover="this.style.background='rgba(201,148,42,0.1)'" onmouseout="this.style.background=''">
-                <span style="flex:1">${sp.name}${/concentration/i.test(sp.duration || '') ? ' <span title="Concentration" style="font-size:0.75rem;color:var(--blue)">◆</span>' : ''}</span>
+                <span style="flex:1">${sp.name}${star(sp.id)}${/concentration/i.test(sp.duration || '') ? ' <span title="Concentration" style="font-size:0.75rem;color:var(--blue)">◆</span>' : ''}</span>
                 <span style="font-size:0.8rem;color:var(--text-muted);font-style:italic">${sp.school}</span>
                 <button onclick="event.stopPropagation();castSpell('${c.id}','${sp.id}')" ${canCast ? '' : 'disabled'} title="${canCast ? 'Cast using the lowest free slot' : 'No slots of this level or higher left'}" style="border:1px solid ${canCast ? 'var(--gold)' : 'var(--border)'};background:${canCast ? 'rgba(201,148,42,0.12)' : 'none'};color:${canCast ? 'var(--gold-text)' : 'var(--text-muted)'};border-radius:2px;padding:0.1rem 0.5rem;font-family:var(--font-ui);font-size:0.8rem;cursor:${canCast ? 'pointer' : 'default'}">Cast</button>
               </div>`;
@@ -351,6 +352,9 @@ function renderSheet(c) {
           }).join('')}
           ${!leveledSpells.length ? `<div style="font-size:0.8rem;color:var(--text-muted);font-style:italic">No spells known yet.</div>` : ''}
         </div>` : ''}
+
+        <!-- CLASS FEATURES -->
+        ${featuresBlock(c)}
 
         <!-- INVENTORY -->
         <div style="background:var(--parchment-dark);border:1px solid var(--border);border-radius:2px;padding:1rem">
@@ -457,7 +461,7 @@ function toggleSlot(id, spellLevel, slotIndex) {
   if (!c.usedSlots) c.usedSlots = {};
   const cls = CLASSES.find(cl => cl.id === c.class);
   const lvlIdx = Math.min(c.level - 1, 19);
-  const total = cls?.spellSlots?.[lvlIdx]?.[spellLevel - 1] || 0;
+  const total = slotsFor(c)[spellLevel - 1] || 0;
   const used = c.usedSlots[spellLevel] || 0;
   const remaining = total - used;
   // Click a filled slot = expend it; click empty = recover it
@@ -542,18 +546,16 @@ function saveInventoryBtn(id) {
 function openAddSpell(charId) {
   const c = state.characters.find(x => x.id === charId);
   if (!c) return;
-  const cls = CLASSES.find(cl => cl.id === c.class);
+  const cls = casterClass(c);
   if (!cls?.spellcaster) return;
 
   // Max castable spell level from the class slot table
-  const lvlIdx = Math.min(c.level - 1, 19);
-  const slots = cls.spellSlots?.[lvlIdx] || [];
-  const maxSlot = slots.reduce((max, count, i) => count > 0 ? i + 1 : max, 0);
-
+  const maxSlot = maxSpellLevel(c);
+  const have = allSpellIds(c);
   const available = SPELLS.filter(sp =>
-    sp.classes.includes(c.class) &&
+    spellOnList(c, sp) &&
     sp.level <= maxSlot &&
-    !c.spells.includes(sp.id)
+    !have.includes(sp.id)
   ).sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));
 
   const existing = document.getElementById('addspell-modal');
@@ -579,7 +581,7 @@ function openAddSpell(charId) {
           <div class="addspell-row" data-name="${sp.name.toLowerCase()}" style="display:flex;align-items:center;gap:0.5rem;padding:0.35rem 0.4rem;border-bottom:1px solid var(--parchment-deeper)">
             <span style="font-family:var(--font-ui);font-size:0.7rem;color:var(--gold-text);width:38px;flex-shrink:0">${sp.level === 0 ? 'Cant.' : 'Lv ' + sp.level}</span>
             <span style="font-size:0.88rem;cursor:pointer" onclick="showSheetSpellDetail('${sp.id}')" title="Click for details">${sp.name}</span>
-            <span style="font-size:0.72rem;color:var(--text-muted);font-style:italic;margin-left:auto;margin-right:0.5rem">${sp.school}</span>
+            <span style="font-size:0.72rem;color:var(--text-muted);font-style:italic;margin-left:auto;margin-right:0.5rem">${sp.classes.includes(cls.spellList || c.class) ? '' : 'other list · '}${sp.school}</span>
             <button onclick="confirmAddSpell('${charId}','${sp.id}')" style="background:none;border:1px solid var(--gold);color:var(--gold-text);border-radius:2px;padding:0.15rem 0.5rem;font-family:var(--font-ui);font-size:0.7rem;cursor:pointer;flex-shrink:0">Add</button>
           </div>`).join('') : '<div style="font-size:0.85rem;color:var(--text-muted);font-style:italic;padding:0.5rem">No more spells available at your level.</div>'}
       </div>
@@ -612,8 +614,7 @@ function confirmAddSpell(charId, spellId) {
 // Slot levels this spell can be cast with that still have a slot free
 function castOptions(c, sp) {
   if (!c || !sp || sp.level === 0) return [];
-  const cls = CLASSES.find(cl => cl.id === c.class);
-  const slots = cls?.spellSlots?.[Math.min(c.level - 1, 19)] || [];
+  const slots = slotsFor(c);
   return slots.map((total, i) => ({ level: i + 1, left: (total || 0) - (c.usedSlots?.[i + 1] || 0) }))
     .filter(o => o.level >= sp.level && o.left > 0);
 }
@@ -632,7 +633,7 @@ function castSpell(charId, spellId, atLevel) {
     const use = (atLevel && opts.find(o => o.level === atLevel)) || opts[0];
     c.usedSlots = c.usedSlots || {};
     c.usedSlots[use.level] = (c.usedSlots[use.level] || 0) + 1;
-    msg = `Cast ${sp.name}${use.level > sp.level ? ` at level ${use.level}` : ''}. ${use.left - 1} level-${use.level} slot${use.left - 1 === 1 ? '' : 's'} left.`;
+    msg = `Cast ${sp.name}${use.level > sp.level ? ` at level ${use.level}` : ''}. ${use.left - 1} level-${use.level} slot${use.left - 1 === 1 ? '' : 's'} left.` + healBonusText(c, sp, use.level);
   }
   if (concentrates) {
     const prev = c.concentration && c.concentration !== sp.id ? concentrationName(c) : null;
@@ -656,12 +657,13 @@ function removeSpell(charId, spellId) {
 function doShortRest(id) {
   const c = state.characters.find(x => x.id === id);
   if (!c) return;
-  // Warlocks recover pact magic slots on a short rest
-  if (c.class === 'warlock') c.usedSlots = {};
+  // Warlocks (and Profane Souls) recover pact magic slots on a short rest
+  const pact = casterClass(c)?.pact;
+  if (pact) c.usedSlots = {};
+  const refills = classResources(c).filter(r => r.reset === 'short' && (c.resUsed?.[r.id] || 0) > 0).map(r => r.name);
+  refillResources(c, 'short');
   c.deathSaves = {success:0, fail:0};
-  showLimitWarning(c.class === 'warlock'
-    ? 'Short rest complete. Pact slots recovered. Spend hit dice to recover HP.'
-    : 'Short rest complete. Spend hit dice to recover HP.');
+  showLimitWarning('Short rest complete.' + (pact ? ' Pact slots recovered.' : '') + (refills.length ? ` Refilled: ${refills.join(', ')}.` : '') + ' Spend hit dice to recover HP.');
   save(); refreshSheets();
 }
 
@@ -674,9 +676,11 @@ function doLongRest(id) {
   c.hitDiceUsed = Math.max(0, (c.hitDiceUsed||0) - Math.max(1, Math.floor(c.level/2)));
   c.deathSaves = {success:0, fail:0};
   delete c.concentration;
+  refillResources(c, 'long');
+  c.bladesong = false;
   const hadExhaustion = c.exhaustion > 0;
   if (hadExhaustion) c.exhaustion -= 1;
-  showLimitWarning('Long rest complete! HP and spell slots restored' + (hadExhaustion ? ', exhaustion reduced by 1.' : '.'));
+  showLimitWarning('Long rest complete! HP, spell slots and class resources restored' + (hadExhaustion ? ', exhaustion reduced by 1.' : '.'));
   save(); refreshSheets();
 }
 
@@ -711,7 +715,7 @@ function showSheetSpellDetail(id, charId) {
       <p style="font-size:0.95rem;line-height:1.7;color:var(--text-main)">${sp.detail||''}</p>
       ${(() => {
         const ch = charId && state.characters.find(x => x.id === charId);
-        if (!ch || !ch.spells.includes(id) || sp.level === 0) return '';
+        if (!ch || !allSpellIds(ch).includes(id) || sp.level === 0) return '';
         const opts = castOptions(ch, sp);
         if (!opts.length) return `<div style="margin-top:1rem;font-size:0.9rem;color:var(--blood)">No spell slots of level ${sp.level} or higher left.</div>`;
         return `<div style="margin-top:1rem;padding-top:0.75rem;border-top:1px solid var(--border)">
@@ -720,7 +724,7 @@ function showSheetSpellDetail(id, charId) {
         </div>`;
       })()}
       <div style="margin-top:1.25rem;display:flex;justify-content:space-between;gap:0.5rem">
-        ${charId && state.characters.find(x => x.id === charId)?.spells.includes(id) ? `<button class="btn-secondary btn-sm" style="color:var(--blood);border-color:var(--blood)" onclick="removeSpell('${charId}','${id}')">Remove from sheet</button>` : '<span></span>'}
+        ${charId && isGrantedSpell(state.characters.find(x => x.id === charId), id) ? `<span style="font-size:0.8rem;color:var(--gold-text)">★ ${esc(grantedLabel(state.characters.find(x => x.id === charId)))}</span>` : ''}${charId && state.characters.find(x => x.id === charId)?.spells.includes(id) && !isGrantedSpell(state.characters.find(x => x.id === charId), id) ? `<button class="btn-secondary btn-sm" style="color:var(--blood);border-color:var(--blood)" onclick="removeSpell('${charId}','${id}')">Remove from sheet</button>` : '<span></span>'}
         <button class="btn-secondary btn-sm" onclick="document.getElementById('sheet-spell-modal').remove()">Close</button>
       </div>
     </div>`;

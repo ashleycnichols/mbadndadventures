@@ -7,37 +7,56 @@ function openLevelUp(id) {
   const c = state.characters.find(x => x.id === id);
   if (!c) return;
   if (c.level >= 20) { showLimitWarning('Already at maximum level (20)!'); return; }
-
   levelUpState = { charId: id, newLevel: c.level + 1, choices: {} };
+  buildLevelUp(c);
+}
 
+// Works out what this level brings. Runs again when the specialty is chosen,
+// since that can add features, spells and HP.
+function buildLevelUp(c) {
+  const choices = levelUpState.choices;
+  const newLevel = levelUpState.newLevel;
+  // The character as they'll be after levelling, including a specialty picked here
+  const p = { ...c, level: newLevel, subclass: choices.subclass || c.subclass, subclassOption: choices.subclassOption || c.subclassOption };
   const cls = CLASSES.find(cl => cl.id === c.class);
-  const newLevel = c.level + 1;
-  const newHpRoll = Math.floor((cls?.hd||8) / 2) + 1 + Math.floor(((c.stats.con||10)-10)/2) + (RACE_HP_PER_LEVEL[c.race] || 0);
+  const oldCaster = casterClass(c), newCaster = casterClass(p);
+  const baseHp = Math.floor((cls?.hd||8) / 2) + 1 + Math.floor(((c.stats.con||10)-10)/2) + (RACE_HP_PER_LEVEL[c.race] || 0);
+  const subHp = subHpPerLevel(p) * newLevel - subHpPerLevel(c) * c.level;   // Draconic Resilience
+  const newHpRoll = baseHp + subHp;
   const newProfBonus = Math.ceil(newLevel / 4) + 1;
 
-  // What changes at this level?
   const changes = [];
+  changes.push({ type:'info', label:'Hit Points', value:`+${newHpRoll} HP (average d${cls?.hd||8} + CON mod${subHp ? ` + ${subHp} ${p.subclass}` : ''})` });
 
-  // HP always increases
-  changes.push({ type:'info', label:'Hit Points', value:`+${newHpRoll} HP (average d${cls?.hd||8} + CON mod)` });
-
-  // Proficiency bonus change
   const oldProf = Math.ceil(c.level / 4) + 1;
   if (newProfBonus > oldProf) changes.push({ type:'info', label:'Proficiency Bonus', value:`+${oldProf} → +${newProfBonus}` });
 
+  // Specialty due at this level (or earlier and never chosen)
+  const needsSub = SUBCLASSES[c.class] && !c.subclass && newLevel >= (SUBCLASS_LEVEL[c.class] || 3);
+  if (needsSub) changes.push({ type:'subclass', label: SUBCLASS_LABEL[c.class] || 'Specialty' });
+  if (p.subclass && subOptionNames(p.subclass).length && !p.subclassOption) changes.push({ type:'subopt', label: SUBCLASS_INFO[p.subclass].options.label });
+
   // Ability Score Improvement at 4, 8, 12, 16, 19
-  const asiLevels = [4,8,12,16,19];
-  const hasASI = asiLevels.includes(newLevel);
-  if (hasASI) {
+  if ([4,8,12,16,19].includes(newLevel)) {
     changes.push({ type:'asi', label:'Ability Score Improvement', value:'Choose +2 to one ability or +1 to two abilities' });
-    levelUpState.choices.asi = { mode:'double', stat:'str' }; // what the form shows by default
+    if (!choices.asi) choices.asi = { mode:'double', stat:'str' };
   }
+
+  // New features: the class's at this level, and the specialty's (all of them up to now if just chosen)
+  const fromSub = choices.subclass ? 1 : newLevel;
+  const feats = featureList(p, newLevel, newLevel).filter(f => f.src !== p.subclass)
+    .concat(featureList(p, newLevel, fromSub).filter(f => f.src === p.subclass));
+  if (feats.length) changes.push({ type:'features', label:'New Features', list: feats });
+
+  // Spells the specialty gives for free
+  const newGranted = grantedSpells(p).filter(id => !grantedSpells(c).includes(id));
+  if (newGranted.length) changes.push({ type:'info', label: grantedLabel(p).replace(/ \(.*/, ''), value: newGranted.map(id => SPELLS.find(s => s.id === id)?.name).join(', ') });
 
   // New spell slots
   const lvlIdx = Math.min(newLevel - 1, 19);
   const oldIdx = Math.min(c.level - 1, 19);
-  const newSlots = cls?.spellSlots?.[lvlIdx] || [];
-  const oldSlots = cls?.spellSlots?.[oldIdx] || [];
+  const newSlots = newCaster?.spellSlots?.[lvlIdx] || [];
+  const oldSlots = oldCaster?.spellSlots?.[oldIdx] || [];
   const slotChanges = [];
   for (let i = 0; i < newSlots.length; i++) {
     const gained = (newSlots[i]||0) - (oldSlots[i]||0);
@@ -46,27 +65,30 @@ function openLevelUp(id) {
   if (slotChanges.length) changes.push({ type:'info', label:'New Spell Slots', value: slotChanges.join(', ') });
 
   // New cantrips
-  const newCantrips = cls?.cantripsKnown?.[lvlIdx] || 0;
-  const oldCantrips = cls?.cantripsKnown?.[oldIdx] || 0;
+  const newCantrips = newCaster?.cantripsKnown?.[lvlIdx] || 0;
+  const oldCantrips = oldCaster?.cantripsKnown?.[oldIdx] || 0;
   if (newCantrips > oldCantrips) changes.push({ type:'cantrip', label:'New Cantrip', value:`Choose ${newCantrips - oldCantrips} new cantrip${newCantrips - oldCantrips > 1 ? 's' : ''}`, count: newCantrips - oldCantrips });
 
   // New spells known (for known casters)
-  const newKnown = cls?.spellsKnown?.[lvlIdx];
-  const oldKnown = cls?.spellsKnown?.[oldIdx];
+  const newKnown = newCaster?.spellsKnown?.[lvlIdx];
+  const oldKnown = oldCaster?.spellsKnown?.[oldIdx];
   if (newKnown !== undefined && newKnown > (oldKnown||0)) {
     const gained = newKnown - (oldKnown||0);
     changes.push({ type:'spell', label:'New Spells Known', value:`Choose ${gained} new spell${gained>1?'s':''}`, count: gained });
   }
 
   // Wizards add spells to their spellbook every level
-  if (cls?.spellbookPerLevel) {
-    changes.push({ type:'spell', label:'Spellbook', value:`Add ${cls.spellbookPerLevel} new spells to your spellbook`, count: cls.spellbookPerLevel });
+  if (newCaster?.spellbookPerLevel) {
+    changes.push({ type:'spell', label:'Spellbook', value:`Add ${newCaster.spellbookPerLevel} new spells to your spellbook`, count: newCaster.spellbookPerLevel });
   }
 
-  // Build accessible spells at new level
+  // Spells they can pick at the new level
   const newMaxSlot = newSlots.reduce((max,count,i) => count > 0 ? i+1 : max, 0);
-  const accessibleSpells = SPELLS.filter(sp => sp.classes.includes(c.class) && sp.level > 0 && sp.level <= newMaxSlot && !c.spells.includes(sp.id));
-  const accessibleCantrips = SPELLS.filter(sp => sp.classes.includes(c.class) && sp.level === 0 && !c.spells.includes(sp.id));
+  const have = allSpellIds(p);
+  const accessibleSpells = SPELLS.filter(sp => spellOnList(p, sp) && sp.level > 0 && sp.level <= newMaxSlot && !have.includes(sp.id));
+  const accessibleCantrips = SPELLS.filter(sp => spellOnList(p, sp) && sp.level === 0 && !have.includes(sp.id));
+  // Drop picks that are no longer on offer (for example after changing the specialty)
+  ['cantrips','spells'].forEach(k => { if (choices[k]) choices[k] = choices[k].filter(id => (k === 'cantrips' ? accessibleCantrips : accessibleSpells).some(s => s.id === id)); });
 
   levelUpState.changes = changes;
   levelUpState.newHp = newHpRoll;
@@ -75,6 +97,20 @@ function openLevelUp(id) {
   levelUpState.newMaxSlot = newMaxSlot;
 
   renderLevelUpModal(c, changes);
+}
+
+function levelUpSetSubclass(value) {
+  const c = state.characters.find(x => x.id === levelUpState.charId);
+  if (!c) return;
+  if (value) levelUpState.choices.subclass = value; else delete levelUpState.choices.subclass;
+  delete levelUpState.choices.subclassOption;
+  buildLevelUp(c);
+}
+function levelUpSetSubOption(value) {
+  const c = state.characters.find(x => x.id === levelUpState.charId);
+  if (!c) return;
+  if (value) levelUpState.choices.subclassOption = value; else delete levelUpState.choices.subclassOption;
+  buildLevelUp(c);
 }
 
 function renderLevelUpModal(c, changes) {
@@ -96,6 +132,39 @@ function renderLevelUpModal(c, changes) {
       choiceHtml += `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.6rem 0.75rem;background:var(--parchment);border:1px solid var(--border);border-radius:2px;margin-bottom:0.5rem">
         <span style="font-family:var(--font-ui);font-size:0.8rem;color:var(--text-muted)">${ch.label}</span>
         <span style="font-size:0.85rem;color:var(--green-health);font-weight:600">${ch.value}</span>
+      </div>`;
+    }
+
+    if (ch.type === 'subclass') {
+      const cur = choices.subclass || '';
+      choiceHtml += `<div style="padding:0.75rem;background:var(--parchment);border:1px solid var(--gold);border-radius:2px;margin-bottom:0.5rem">
+        <div style="font-family:var(--font-ui);font-size:0.8rem;color:var(--gold-text);margin-bottom:0.4rem">Choose your ${ch.label}</div>
+        <select onchange="levelUpSetSubclass(this.value)" style="width:100%;padding:0.4rem;border:1px solid var(--border);background:var(--parchment);border-radius:2px;font-family:var(--font-ui);font-size:0.85rem">
+          <option value="">Choose…</option>
+          ${SUBCLASSES[c.class].map(sc => `<option value="${sc}" ${cur===sc?'selected':''}>${sc}</option>`).join('')}
+        </select>
+        ${cur ? '' : '<div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.3rem;font-style:italic">You can also choose it later at the top of the sheet.</div>'}
+      </div>`;
+    }
+
+    if (ch.type === 'subopt') {
+      const sub = choices.subclass || c.subclass;
+      choiceHtml += `<div style="padding:0.75rem;background:var(--parchment);border:1px solid var(--gold);border-radius:2px;margin-bottom:0.5rem">
+        <div style="font-family:var(--font-ui);font-size:0.8rem;color:var(--gold-text);margin-bottom:0.4rem">${sub}: choose your ${ch.label}</div>
+        <select onchange="levelUpSetSubOption(this.value)" style="width:100%;padding:0.4rem;border:1px solid var(--border);background:var(--parchment);border-radius:2px;font-family:var(--font-ui);font-size:0.85rem">
+          <option value="">Choose…</option>
+          ${subOptionNames(sub).map(o => `<option value="${o}" ${choices.subclassOption===o?'selected':''}>${o}</option>`).join('')}
+        </select>
+      </div>`;
+    }
+
+    if (ch.type === 'features') {
+      choiceHtml += `<div style="padding:0.6rem 0.75rem;background:var(--parchment);border:1px solid var(--border);border-radius:2px;margin-bottom:0.5rem">
+        <div style="font-family:var(--font-ui);font-size:0.8rem;color:var(--text-muted);margin-bottom:0.3rem">${ch.label}</div>
+        ${ch.list.map(f => `<div style="padding:0.25rem 0;border-top:1px solid var(--parchment-deeper)">
+          <div style="display:flex;justify-content:space-between;gap:0.5rem;flex-wrap:wrap"><strong style="font-size:0.88rem">${esc(f.name)}</strong>${featureTagHTML(f.tag)}</div>
+          <div style="font-size:0.82rem;color:var(--text-muted);line-height:1.4">${esc(f.text)}</div>
+        </div>`).join('')}
       </div>`;
     }
 
@@ -195,8 +264,10 @@ function confirmLevelUp() {
   const choices = levelUpState.choices;
   const cls = CLASSES.find(cl => cl.id === c.class);
 
-  // Apply level
+  // Apply level and any specialty chosen here
   c.level = levelUpState.newLevel;
+  if (choices.subclass) { c.subclass = choices.subclass; delete c.subclassOption; }
+  if (choices.subclassOption) c.subclassOption = choices.subclassOption;
 
   // Apply HP
   c.maxHp += levelUpState.newHp;

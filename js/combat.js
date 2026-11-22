@@ -21,7 +21,7 @@ function renderQuickView() {
 
 // ---- Concentration ----
 function concentrationSpells(c) {
-  return (c.spells || []).map(id => SPELLS.find(s => s.id === id))
+  return allSpellIds(c).map(id => SPELLS.find(s => s.id === id))
     .filter(sp => sp && /concentration/i.test(sp.duration || ''));
 }
 
@@ -63,8 +63,9 @@ function renderCombatView() {
   const td = 'padding:0.5rem;border-bottom:1px solid var(--border);vertical-align:top';
   const rows = chars.map(c => {
     normalizeChar(c);
-    const cls = CLASSES.find(cl => cl.id === c.class);
+    const cls = casterClass(c);
     const hpPct = Math.max(0, Math.round(c.currentHp / c.maxHp * 100));
+    const resText = resourcesText(c);
     const hpColor = hpPct > 60 ? 'var(--green-health)' : hpPct > 25 ? 'var(--amber)' : 'var(--blood)';
     const down = c.currentHp <= 0;
     const note = state.dmNotes?.[c.id] || '';
@@ -75,7 +76,8 @@ function renderCombatView() {
     return `<tr>
       <td style="${td}">
         <div style="font-family:var(--font-ui);font-weight:600;cursor:pointer" onclick="showPanel('party');openDMSheet('${c.id}')" title="Open full sheet">${esc(c.name) || 'Unnamed'}${c.inspiration ? ' ⭐' : ''}</div>
-        <div style="font-size:0.72rem;color:var(--text-muted)">${esc(cls?.name || '')} ${c.level}${c.player ? ' · ' + esc(c.player) : ''}</div>
+        <div style="font-size:0.72rem;color:var(--text-muted)">${esc(cls?.name || '')} ${c.level}${c.subclass ? ' · ' + esc(c.subclass) : ''}${c.player ? ' · ' + esc(c.player) : ''}</div>
+        ${resText ? `<div style="font-size:0.72rem;color:var(--gold-text);margin-top:0.15rem;max-width:220px">${esc(resText)}</div>` : ''}
       </td>
       <td style="${td};min-width:170px">
         <div style="font-family:var(--font-ui)"><strong style="color:${hpColor};font-size:1.05rem">${c.currentHp}</strong> / ${c.maxHp}${c.tempHp > 0 ? ` <span style="color:var(--blue);font-size:0.8rem">+${c.tempHp}</span>` : ''}</div>

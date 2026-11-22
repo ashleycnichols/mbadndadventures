@@ -19,7 +19,7 @@ function mapToggleDeathSave(id, type, index) { toggleDeathSave(id, type, index);
 function compactSheetHTML(c, prefix) {
   normalizeChar(c);
 
-  const cls = CLASSES.find(cl => cl.id === c.class);
+  const cls = casterClass(c);
   const race = RACES.find(r => r.id === c.race);
   const profBonus = Math.ceil(c.level / 4) + 1;
   const getMod = s => Math.floor(((c.stats[s]||10) - 10) / 2);
@@ -39,7 +39,7 @@ function compactSheetHTML(c, prefix) {
   const weaponObjs = (c.weapons||[]).map(id => WEAPONS.find(w => w.id === id)).filter(Boolean);
 
   // Spells
-  const spellObjs = (c.spells||[]).map(id => SPELLS.find(s => s.id === id)).filter(Boolean);
+  const spellObjs = allSpellIds(c).map(id => SPELLS.find(s => s.id === id)).filter(Boolean);
   const cantrips = spellObjs.filter(s => s.level === 0);
   const leveled = spellObjs.filter(s => s.level > 0);
 
@@ -139,6 +139,10 @@ function compactSheetHTML(c, prefix) {
       }).join('')}
     </div>`;
   }
+
+  // ── Class resources (Ki, Rage...) ──
+  const resHTML = resourcesHTML(c, true);
+  if (resHTML) html += `<div style="${sec}"><div style="${label}">Resources</div>${resHTML}</div>`;
 
   // ── Spell slots ──
   if (hasSlots) {

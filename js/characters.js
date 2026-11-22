@@ -97,7 +97,7 @@ function calcAC(ch) {
   if (!ch?.stats) return 10;
   if (Number.isFinite(+ch.acOverride) && ch.acOverride !== '' && ch.acOverride !== null) return +ch.acOverride;
   if (ch.race === 'tortle') return 17; // Natural Armor replaces worn armour
-  const classAC = classDefaultAC(ch) + (RACE_AC_BONUS[ch.race] || 0);
+  const classAC = subArmorGuess(ch, classDefaultAC(ch)) + (RACE_AC_BONUS[ch.race] || 0);
   // Natural armour (Lizardfolk): base + DEX, if better than the class guess
   if (RACE_NATURAL_AC[ch.race]) return Math.max(classAC, RACE_NATURAL_AC[ch.race] + abilityMod(ch, 'dex'));
   return classAC;
@@ -115,37 +115,53 @@ function editAC(id) {
 function raceSpeed(ch) { return RACES.find(r => r.id === ch?.race)?.speed || 30; }
 function raceSpeedText(ch) {
   const r = RACES.find(x => x.id === ch?.race);
-  return (r?.speed || 30) + ' ft' + (r?.fly ? `, fly ${r.fly}` : '') + (r?.swim ? `, swim ${r.swim}` : '');
+  return ((r?.speed || 30) + classSpeedBonus(ch)) + ' ft' + (r?.fly ? `, fly ${r.fly}` : '') + (r?.swim ? `, swim ${r.swim}` : '');
 }
 // Initiative: DEX modifier, plus proficiency for some races (Harengon: Hare-Trigger)
 function initiativeBonus(ch) {
-  return abilityMod(ch, 'dex') + (RACE_INIT_PROF.includes(ch?.race) ? proficiencyBonus(ch) : 0);
+  const prof = RACE_INIT_PROF.includes(ch?.race) ? proficiencyBonus(ch)
+    : halfProfOn(ch, 'dex') ? Math.floor(proficiencyBonus(ch) / 2) : 0;   // Jack of All Trades / Remarkable Athlete
+  return abilityMod(ch, 'dex') + prof + subInitBonus(ch);
 }
 
-function isSaveProficient(ch, ab) { return (CLASSES.find(c => c.id === ch?.class)?.saves || []).includes(ab); }
-function saveBonus(ch, ab) { return abilityMod(ch, ab) + (isSaveProficient(ch, ab) ? proficiencyBonus(ch) : 0); }
+function isSaveProficient(ch, ab) { return (CLASSES.find(c => c.id === ch?.class)?.saves || []).includes(ab) || extraSaveProf(ch, ab); }
+function saveBonus(ch, ab) { return abilityMod(ch, ab) + (isSaveProficient(ch, ab) ? proficiencyBonus(ch) : 0) + auraBonus(ch); }
 
 function backgroundSkills(ch) {
   const bg = BACKGROUNDS.find(b => b.id === ch?.background);
   return bg ? bg.desc.split(',').map(x => x.trim()) : [];
 }
 function raceSkills(ch) { return RACE_SKILLS[ch?.race] || []; }
-function isSkillProficient(ch, skill) { return backgroundSkills(ch).includes(skill) || raceSkills(ch).includes(skill) || (ch?.skillProfs || []).includes(skill); }
+function fixedSkills(ch) { return [...backgroundSkills(ch), ...raceSkills(ch), ...subSkills(ch)]; }
+function isSkillProficient(ch, skill) { return fixedSkills(ch).includes(skill) || (ch?.skillProfs || []).includes(skill); }
+function hasExpertise(ch, skill) { return isSkillProficient(ch, skill) && (ch?.expertise || []).includes(skill); }
 function skillBonus(ch, skill) {
   const sk = SKILL_LIST.find(s => s.name === skill);
-  return abilityMod(ch, sk?.ab) + (isSkillProficient(ch, skill) ? proficiencyBonus(ch) : 0);
+  const pb = proficiencyBonus(ch);
+  const prof = hasExpertise(ch, skill) ? 2 * pb : isSkillProficient(ch, skill) ? pb : halfProfOn(ch, sk?.ab) ? Math.floor(pb / 2) : 0;
+  return abilityMod(ch, sk?.ab) + prof;
 }
 function passivePerception(ch) { return 10 + skillBonus(ch, 'Perception'); }
 function toggleSkillProf(id, skill) {
   const c = state.characters.find(x => x.id === id);
-  if (!c || backgroundSkills(c).includes(skill) || raceSkills(c).includes(skill)) return; // background and race skills are always on
+  if (!c) return;
   c.skillProfs = c.skillProfs || [];
-  c.skillProfs = c.skillProfs.includes(skill) ? c.skillProfs.filter(s => s !== skill) : [...c.skillProfs, skill];
+  c.expertise = c.expertise || [];
+  const fixed = fixedSkills(c).includes(skill);   // background, race and specialty skills are always on
+  // Classes with Expertise cycle: not proficient → proficient → expertise → not proficient
+  if (canExpertise(c) && isSkillProficient(c, skill) && !c.expertise.includes(skill)) {
+    c.expertise.push(skill);
+  } else if (c.expertise.includes(skill)) {
+    c.expertise = c.expertise.filter(s => s !== skill);
+    if (!fixed) c.skillProfs = c.skillProfs.filter(s => s !== skill);
+  } else if (!fixed) {
+    c.skillProfs = c.skillProfs.includes(skill) ? c.skillProfs.filter(s => s !== skill) : [...c.skillProfs, skill];
+  } else return;
   save(); refreshSheets();
 }
 
 function spellcastingMod(ch) {
-  const cls = CLASSES.find(c => c.id === ch?.class);
+  const cls = casterClass(ch);
   return cls?.spellcaster ? abilityMod(ch, cls.statHp) : 0;
 }
 
@@ -153,11 +169,18 @@ function spellcastingMod(ch) {
 // ranged uses DEX, otherwise STR. Proficiency only if the class has it.
 function weaponAttack(ch, w) {
   const str = abilityMod(ch, 'str'), dex = abilityMod(ch, 'dex');
-  const mod = w.finesse ? Math.max(str, dex) : w.range === 'Ranged' ? dex : str;
-  const proficient = classCanUseWeapon(ch.class, w) || (RACE_WEAPONS[ch.race] || []).includes(w.id);
+  let mod = (w.finesse || isMonkWeapon(ch, w)) ? Math.max(str, dex) : w.range === 'Ranged' ? dex : str;   // Martial Arts uses DEX too
+  const proficient = classCanUseWeapon(ch.class, w) || (RACE_WEAPONS[ch.race] || []).includes(w.id) || subWeaponProf(ch, w);
+  if (proficient && activeSub(ch)?.attackStat && w.range !== 'Ranged') mod = Math.max(mod, abilityMod(ch, activeSub(ch).attackStat)); // Hex Warrior
+  let dice = w.dmg;
+  if (isMonkWeapon(ch, w)) {
+    const md = _md(ch);   // martial arts die replaces a smaller weapon die
+    const size = d => +(String(d).match(/d(\d+)/)?.[1] || 0);
+    if (size(md) > size(dice)) dice = '1' + md;
+  }
   const atk = mod + (proficient ? proficiencyBonus(ch) : 0);
-  const dmg = w.dmg + (mod ? (mod > 0 ? '+' : '−') + Math.abs(mod) : '');
-  return { atk, dmg, proficient };
+  const dmg = dice + (mod ? (mod > 0 ? '+' : '−') + Math.abs(mod) : '');
+  return { atk, dmg, proficient, crit: critRange(ch) };
 }
 
 // Racial ability bonuses

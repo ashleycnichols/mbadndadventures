@@ -40,6 +40,8 @@ function normalizeChar(c) {
   if (!Array.isArray(c.weapons)) c.weapons = c.weapons ? Object.values(c.weapons) : [];
   if (!Array.isArray(c.conditions)) c.conditions = c.conditions ? Object.values(c.conditions) : [];
   if (!Array.isArray(c.skillProfs)) c.skillProfs = c.skillProfs ? Object.values(c.skillProfs) : [];
+  if (!Array.isArray(c.expertise)) c.expertise = c.expertise ? Object.values(c.expertise) : [];
+  if (!c.resUsed || typeof c.resUsed !== 'object') c.resUsed = {};
   if (!c.stats) c.stats = { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
   if (!c.exhaustion) c.exhaustion = 0;
   if (!c.level) c.level = 1;

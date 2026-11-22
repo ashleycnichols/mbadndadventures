@@ -807,3 +807,8 @@
   @media (max-width: 420px) {
     .skills-grid { grid-template-columns: 1fr !important; }
   }
+
+/* Class feature cards: tap to open */
+details.feat > summary::-webkit-details-marker { display: none; }
+details.feat > summary > span:first-child::before { content: '▸'; display: inline-block; width: 1em; color: var(--gold-text); transition: transform 0.15s; }
+details.feat[open] > summary > span:first-child::before { transform: rotate(90deg); }

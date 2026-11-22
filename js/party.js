@@ -17,7 +17,7 @@ function renderPartyPanel() {
   state.characters.forEach(ch => {
     normalizeChar(ch);
 
-    const cls = CLASSES.find(cl => cl.id === ch.class);
+    const cls = casterClass(ch);
     const race = RACES.find(r => r.id === ch.race);
     const profBonus = Math.ceil(ch.level / 4) + 1;
     const getMod = s => Math.floor(((ch.stats[s]||10) - 10) / 2);
